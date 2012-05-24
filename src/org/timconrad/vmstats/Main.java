@@ -26,6 +26,7 @@ import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.OptionBuilder;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.PosixParser;
+import org.apache.log4j.spi.LoggerRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -189,6 +190,7 @@ public class Main {
 				logger.info("Either ServiceInstance or PerformanceManager is null, bailing.");
 			}
 		}else{
+			logger.info("foo");
 			System.out.println("Not running any of the main threads");
 			System.exit(0);
 		}

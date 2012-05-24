@@ -1,0 +1,7 @@
+
+syntax: regexp
+^vmstats\.properties$
+syntax: regexp
+^src/log4j\.properties$
+syntax: regexp
+^src/log4j\.properties$

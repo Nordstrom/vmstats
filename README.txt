@@ -13,12 +13,16 @@ To run:
 	Run:
 	java -Dlog4j.configuration=log4j.properties -jar vmstats-2.0.1.jar
 	
+Notes:
+
+	Rollup Types
+		- 'none' is a legitimate rollup type - it's never rolled up into the jobs
+		to be averaged or whatever 
 
 To Do:
 	- Package better
 	- Make run as daemon
 	- More internal statistics
-	- Graph performance of ESX nodes
 
 Build Requirements:
 	slf4j - (1.6.4) http://www.slf4j.org/

@@ -28,26 +28,29 @@ public class statsGrabber implements Runnable {
 	private final BlockingQueue<String[]> sender;
 	private final PerformanceManager perfMgr;
 	private final Hashtable<String, Hashtable<String,String>> perfKeys;
+	private final Hashtable<String, String> appConfig;
+	private String mobType = "bob";
 	
 	private static final Logger logger = LoggerFactory.getLogger(statsGrabber.class);
 	
 	public statsGrabber(PerformanceManager perfMgr, Hashtable<String, Hashtable<String, String>> perfKeys,
-			BlockingQueue<ManagedEntity> mob_queue, BlockingQueue<String[]> sender) {
+			BlockingQueue<ManagedEntity> mob_queue, BlockingQueue<String[]> sender, Hashtable<String, String> appConfig, String mobType) {
 		this.mob_queue = mob_queue;
 		this.sender = sender;
 		this.perfMgr = perfMgr;
 		this.perfKeys = perfKeys;
+		this.appConfig = appConfig;
+		this.mobType = mobType;
 	}	
 	
 	private String[] getStats(ManagedEntity vm) {
 		final ArrayList<String> temp_results = new ArrayList<String>();
 		
-		final String TAG_NS = "vmstats";
+		final String TAG_NS = appConfig.get("graphiteTag") + "." + appConfig.get("vcsTag");
 		
 		PerfProviderSummary pps;
 		try {
-			// TODO
-			// FIXME - maek dis smrtr
+			// TODO - maek dis smrtr
 			// this is a mess, and probably expensive to do. some sort of caching mechanism would 
 			// probably be better. but should probably be per-thread to avoid blocking issues with a
 			// shared cache
@@ -60,8 +63,10 @@ public class statsGrabber implements Runnable {
 			// for VM's, this is likely always 20 seconds in this context.
 			int refreshRate = pps.getRefreshRate().intValue();
 			PerfMetricId[] pmis = this.perfMgr.queryAvailablePerfMetric(vm, null, null, refreshRate);
-			PerfQuerySpec qSpec = createPerfQuerySpec(vm, pmis, 1, refreshRate);
-			// pValues always returns 11
+			int perfEntries = 1;
+			PerfQuerySpec qSpec = createPerfQuerySpec(vm, pmis, perfEntries, refreshRate);
+			// pValues always returns perfEntries results. this code hasn't been tested grabbing more than 1
+			// stat at a time.
 			PerfEntityMetricBase[] pValues = perfMgr.queryPerf(new PerfQuerySpec[] {qSpec});
 			
 			if(pValues != null) {
@@ -79,21 +84,22 @@ public class statsGrabber implements Runnable {
 						String instance = vals[x].getId().getInstance();
 						// disks will be naa.12341234, change them to naa_12341234 instead
 						instance = instance.replace(".", "_");
-						// TODO: Figure out what's up with the 'none' rollup types.
+						// the 'none' rollup type is completely legitmate - it doesn't roll up, so it's live data
 						String rollup = perfKeys.get("" + counterId).get("rollup");
 						
 						String tag = "";
 						if(instance.equals("")) {
 							// no instance, no period required
-							tag = TAG_NS + "." + vmNameShort + "." + key + "." + rollup; 
+							tag = TAG_NS + "." + mobType + "." + vmNameShort + "." + key + "." + rollup; 
 						}else{
-							tag = TAG_NS + "." + vmNameShort + "." + key + "." + instance + "." + rollup;
+							tag = TAG_NS + "." + mobType + "." + vmNameShort + "." + key + "." + instance + "." + rollup;
 						}
-						// tag should be vmstats.hostname.cpu.whatever.whatever at this point
+						// tag should be vmstats.VMTAG.hostname.cpu.whatever.whatever at this point
 						
 						long stat = 0;
 						// this is a bit redundant, since we're only getting 1 stat at a time
-						// however, this allows us to get more stats with a single pass.
+						// however, could allow us to get more stats with a single pass.
+						// TODO: Stuff here to make it so multiple sets of data could be retrieved simultaneously
 						if(vals[x] instanceof PerfMetricIntSeries) {
 							PerfMetricIntSeries val = (PerfMetricIntSeries) vals[x];
 							long[] longs = val.getValue();
@@ -104,6 +110,8 @@ public class statsGrabber implements Runnable {
 						}
 						// create the final string here
 						String graphiteData = tag + " " + stat + " " + timestamp + "\n";
+						// enabling this is VERY verbose, but often simpler to stop the graphiteWriter thread
+						// and enable this.
 						// logger.debug("graphiteData: " + graphiteData);
 						temp_results.add(graphiteData);
 						
@@ -143,10 +151,11 @@ public class statsGrabber implements Runnable {
 	public void run() {
 		try {
 			while(true) {
-
+				// take item from BlockingQueue
 				ManagedEntity vm = this.mob_queue.take();
+				// run the getStats function on the vm
 				String[] stats = this.getStats(vm);
-				
+				// take the output from the getStats function and send to graphite.
 				sender.put(stats);
 			}
 			

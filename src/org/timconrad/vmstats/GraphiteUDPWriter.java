@@ -1,3 +1,19 @@
+/*
+ * Copyright 2012 Tim Conrad - tim@timconrad.org
+ *
+ *    Licensed under the Apache License, Version 2.0 (the "License");
+ *    you may not use this file except in compliance with the License.
+ *    You may obtain a copy of the License at
+ *
+ *        http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *    Unless required by applicable law or agreed to in writing, software
+ *    distributed under the License is distributed on an "AS IS" BASIS,
+ *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *    See the License for the specific language governing permissions and
+ *    limitations under the License.
+ */
+
 package org.timconrad.vmstats;
 
 import java.io.IOException;
@@ -5,14 +21,15 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.Arrays;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class GraphiteUDPWriter {
+class GraphiteUDPWriter {
 	
 	private InetAddress host;
-	private int port;
+	private final int port;
 	private Boolean enableSend = true;
 	private DatagramSocket socket = null;
 	private static final Logger logger = LoggerFactory.getLogger(GraphiteUDPWriter.class);
@@ -54,11 +71,11 @@ public class GraphiteUDPWriter {
 		 * 
 		 * Sends a single record via UDP to Graphite
 		 * 
-		 * @input - properly formated graphite string this.tag 0 <unixtime
+		 * @input - properly formatted graphite string this.tag 0 < unix time
 		 */
 		String sendThis;
 		
-		// a bit awkward, but need a \n, and other fixup stuff
+		// a bit awkward, but need a \n, and other fix-up stuff
 		// could happen here
 		if(!input.contains("\n")) {
 			logger.debug("String " + input + " does not contain newline, adding one");
@@ -93,25 +110,25 @@ public class GraphiteUDPWriter {
 		if(enableSend) {
 			try {
 				this.connect();
-				for(int i=0; i < input.length; i ++) {
-					// a bit awkward, but need a \n, and other fixup stuff
-					// could happen here
-					if(!input[i].contains("\n")) {
-						logger.debug("String " + input[i] + " does not contain newline, adding one");
-						sendThis = input[i] + "\n";
-					}else{
-						sendThis = input[i];
-					}
-					byte[] outBuffer = new byte[sendThis.length() + 1];
-					outBuffer = sendThis.getBytes();
-					
-					DatagramPacket udpPacket = new DatagramPacket(outBuffer, outBuffer.length, this.host, this.port);
-					this.socket.send(udpPacket);
-				}
+                for (String anInput : input) {
+                    // a bit awkward, but need a \n, and other fixup stuff
+                    // could happen here
+                    if (!anInput.contains("\n")) {
+                        logger.debug("String " + anInput + " does not contain newline, adding one");
+                        sendThis = anInput + "\n";
+                    } else {
+                        sendThis = anInput;
+                    }
+                    byte[] outBuffer = new byte[sendThis.length() + 1];
+                    outBuffer = sendThis.getBytes();
+
+                    DatagramPacket udpPacket = new DatagramPacket(outBuffer, outBuffer.length, this.host, this.port);
+                    this.socket.send(udpPacket);
+                }
 				this.socket.close();
 				
 			} catch (IOException e) {
-				logger.info("Could not send data: " + input);
+				logger.info("Could not send data: " + Arrays.toString(input));
 				e.printStackTrace();
 			}
 		}

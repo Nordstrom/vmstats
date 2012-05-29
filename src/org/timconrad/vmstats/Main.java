@@ -1,3 +1,19 @@
+/*
+ * Copyright 2012 Tim Conrad - tim@timconrad.org
+ *
+ *    Licensed under the Apache License, Version 2.0 (the "License");
+ *    you may not use this file except in compliance with the License.
+ *    You may obtain a copy of the License at
+ *
+ *        http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *    Unless required by applicable law or agreed to in writing, software
+ *    distributed under the License is distributed on an "AS IS" BASIS,
+ *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *    See the License for the specific language governing permissions and
+ *    limitations under the License.
+ */
+
 package org.timconrad.vmstats;
 
 import java.io.FileInputStream;
@@ -172,13 +188,21 @@ public class Main {
 			try {
 				// VirtualMachine NOT VirtualMachines
 				// get a list of virtual machines
-				vms = new InventoryNavigator(si.getRootFolder()).searchManagedEntities("VirtualMachine");
-			} catch(RemoteException e) {
+                if (si != null) {
+                    vms = new InventoryNavigator(si.getRootFolder()).searchManagedEntities("VirtualMachine");
+                }else{
+                    System.out.println("Error connecting to vCenter");
+                    System.exit(0);
+                }
+            } catch(RemoteException e) {
 				e.getStackTrace();
 				logger.info("vm grab exception: " + e);
 			}
-			System.out.println("There are currently " + vms.length + " Virtual Machines known to this vCenter");
-			int metricCount = perfKeys.size() * vms.length;
+            int metricCount = 0;
+            if (vms != null) {
+                metricCount = perfKeys.size() * vms.length;
+                System.out.println("There are currently " + vms.length + " Virtual Machines known to this vCenter");
+            }
 			System.out.println("There will be approximatly " + metricCount +  " stats written to graphite per time period");
 			System.out.println("This is way way way off, probably x3 at this point");
 			System.exit(0);
@@ -186,7 +210,7 @@ public class Main {
 		
 		// this gets the lists of vm's from vCenter
 		if(!noThreads) {
-			if( si != null && perfMgr != null) {
+			if(si != null && perfMgr != null) {
 				logger.info("ServiceInstance: " + si);
 				logger.info("PerformanceManager: " + perfMgr);
 				

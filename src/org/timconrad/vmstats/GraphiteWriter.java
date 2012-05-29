@@ -1,3 +1,19 @@
+/*
+ * Copyright 2012 Tim Conrad - tim@timconrad.org
+ *
+ *    Licensed under the Apache License, Version 2.0 (the "License");
+ *    you may not use this file except in compliance with the License.
+ *    You may obtain a copy of the License at
+ *
+ *        http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *    Unless required by applicable law or agreed to in writing, software
+ *    distributed under the License is distributed on an "AS IS" BASIS,
+ *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *    See the License for the specific language governing permissions and
+ *    limitations under the License.
+ */
+
 package org.timconrad.vmstats;
 
 import java.util.concurrent.BlockingQueue;
@@ -10,6 +26,7 @@ public class GraphiteWriter implements Runnable{
 	private final BlockingQueue<String[]> dumper;
 	private String host = null;
 	private int port = 0;
+    private volatile boolean cancelled;
 	
 	public GraphiteWriter(String host, int port, BlockingQueue<String[]> dumper) {
 		// the constructor. construct things.
@@ -17,11 +34,15 @@ public class GraphiteWriter implements Runnable{
 		this.host = host;
 		this.port = port;
 	}
+
+    public void cancel() {
+        this.cancelled = true;
+    }
 	
 	public void run() {
 		GraphiteUDPWriter graphite = new GraphiteUDPWriter(host, port);
 		try {
-			while(true) {
+			while(!cancelled) {
 				// take the first one off the queue. this is a BlockingQueue so it blocks the loop until somethin
 				// comes along on the queue.
 				String[] value = this.dumper.take();
@@ -33,9 +54,11 @@ public class GraphiteWriter implements Runnable{
 			e.getStackTrace();
 			logger.info("Thread: " + Thread.currentThread().getName() + "Interrupted: " + e.getMessage());
 			Thread.currentThread().interrupt();
+            System.exit(300);
 		} catch(Exception e) {
 			e.getStackTrace();
 			logger.info("Thread: " + Thread.currentThread().getName() + " +  Interrupted: " + e.getMessage());
+            System.exit(301);
 		}
 	}
 }

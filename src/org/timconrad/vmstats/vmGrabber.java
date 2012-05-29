@@ -1,8 +1,25 @@
+/*
+ * Copyright 2012 Tim Conrad - tim@timconrad.org
+ *
+ *    Licensed under the Apache License, Version 2.0 (the "License");
+ *    you may not use this file except in compliance with the License.
+ *    You may obtain a copy of the License at
+ *
+ *        http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *    Unless required by applicable law or agreed to in writing, software
+ *    distributed under the License is distributed on an "AS IS" BASIS,
+ *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *    See the License for the specific language governing permissions and
+ *    limitations under the License.
+ */
+
 package org.timconrad.vmstats;
 // this is a Producer in the arrangement
 // this goes and gets a list of vm's to send to statsGrabber
 
 import java.rmi.RemoteException;
+import java.util.Arrays;
 import java.util.Hashtable;
 import java.util.concurrent.BlockingQueue;
 
@@ -20,6 +37,7 @@ public class vmGrabber implements Runnable{
 	private final Hashtable<String, String> appConfig;
 	private final ServiceInstance si;
 	private static final Logger logger = LoggerFactory.getLogger(vmGrabber.class);
+    private volatile boolean cancelled;
 
 	public vmGrabber(ServiceInstance si, BlockingQueue<ManagedEntity> vm_mob_queue, 
 			BlockingQueue<ManagedEntity> esx_mob_queue, Hashtable<String, String> appConfig) {
@@ -28,10 +46,12 @@ public class vmGrabber implements Runnable{
 		this.appConfig = appConfig;
 		this.si = si;
 	}
-	
+    public void cancel() {
+        this.cancelled = true;
+    }
 	public void run() {
 		try {
-			while(true) {
+			while(!cancelled) {
 				long start = System.currentTimeMillis();
 				ManagedEntity[] vms = null;
 				try {
@@ -41,23 +61,24 @@ public class vmGrabber implements Runnable{
 				} catch(RemoteException e) {
 					e.getStackTrace();
 					logger.info("vm grab exception: " + e);
+                    System.exit(200);
 				}
 				
 				logger.info("Found " + vms.length + " Virtual Machines");
 				if (vms != null) {
 					// if they're not null, loop through them and send them to the
 					// statsGrabber thread to get stats for.
-					for(int i = 0; i < vms.length; i++) {
-						if(vms[i] != null) {
-							this.vm_mob_queue.put(vms[i]);
-						}
-					}
+                    for (ManagedEntity vm : vms) {
+                        if (vm != null) {
+                            this.vm_mob_queue.put(vm);
+                        }
+                    }
 				}
 				long vm_stop = System.currentTimeMillis();
-				
 				long vm_loop_took = vm_stop - start;
 				logger.debug("vmGrabber VM loop took " + vm_loop_took + "ms.");
-				
+
+                long esx_loop_took = 0;
 				String graphEsx = this.appConfig.get("graphEsx");
 				if (graphEsx.contains("1")) {
 					ManagedEntity[] esx = null;
@@ -67,25 +88,25 @@ public class vmGrabber implements Runnable{
 					} catch(RemoteException e) {
 						e.getStackTrace();
 						logger.info("vm grab exception: " + e);
+                        System.exit(201);
 					}
 					
 					logger.info("Found " + esx.length + " ESX Hosts");
 					if (esx != null) {
 						// if they're not null, loop through them and send them to the
 						// statsGrabber thread to get stats for.
-						for(int i = 0; i < esx.length; i++) {
-							if(esx[i] != null) {
-								this.esx_mob_queue.put(esx[i]);
-							}
-						}
+                        for (ManagedEntity anEsx : esx) {
+                            if (anEsx != null) {
+                                this.esx_mob_queue.put(anEsx);
+                            }
+                        }
 					}			
 					long esx_stop = System.currentTimeMillis();
-					long esx_took = esx_stop - start;
-					logger.debug("vmGrabber ESX loop took " + esx_took + "ms.");
+					esx_loop_took = esx_stop - start;
+					logger.debug("vmGrabber ESX loop took " + esx_loop_took + "ms.");
 				}
 				
-				long stop = System.currentTimeMillis();
-				long loop_took = stop - start;
+				long loop_took = vm_loop_took + esx_loop_took;
 				// stupid simple thing to make this go every 60 seconds, since we're getting 'past data' anyways.
 				// there's probably more accurate ways of doing this.
 				long sleep_time = 60000 - loop_took;
@@ -95,9 +116,11 @@ public class vmGrabber implements Runnable{
 		} catch(InterruptedException e) {
 			Thread.currentThread().interrupt();
 			logger.info("Interrupted Thread: " + Thread.currentThread().getName() + " +  Interrupted: " + e.getMessage());
+            System.exit(202);
 		} catch(Exception e) {
-			System.out.println(e.getStackTrace().toString());
+			System.out.println(Arrays.toString(e.getStackTrace()));
 			logger.info("Other Exception Thread: " + Thread.currentThread().getName() + " +  Interrupted: " + e.getMessage());
+            System.exit(203);
 		}
 		
 	}

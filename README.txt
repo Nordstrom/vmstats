@@ -1,3 +1,5 @@
+
+
 vmstats-2.0 - The vmstats strikes back.
 
 Version 1.0 of vmstats was written in python and this is a complete rewrite.
@@ -26,8 +28,8 @@ Requirements:
 To run:
 	copy vmstats.default.properties to vmstats.properties.
 	
-	Configure vmstats.properties to suit your environment. Enabling ESX stats
-	will add a significant amount of records being sent to graphite.
+	Configure vmstats.properties to suit your environment. Enabling ESX
+	stats will add a significant amount of records being sent to graphite.
 	
 	Run:
 	java -Dlog4j.configuration=log4j.properties -jar vmstats-2.0.1.jar
@@ -35,17 +37,24 @@ To run:
 Notes:
 
 	Roll-up information:
-		- 'none' is a legitimate rollup type - it's never rolled up into the jobs
-		to be averaged or whatever 
+		- 'none' is a legitimate rollup type - it's never rolled up into
+		the jobs to be averaged or whatever
 		- This link can be helpful deciphering what is being put into graphite:
 			http://vijava.sourceforge.net/vSphereAPIDoc/ver5/ReferenceGuide/vim.PerformanceManager.html
-		- This gets *all* stats that are available on each pass. There's apparently
-		no easy way to prune this prior to getting the stats from VMware. And I'd rather
-		not go through the list to prune them. 
+		- This gets *all* stats that are available on each pass. There's
+		apparently no easy way to prune this prior to getting the stats from
+		VMware. And I'd  rather not go through the list to prune them.
+
+	This code is a bit cowardly, if exceptions are generated, the entire thing is going
+	bail. After getting some useful exceptions to handle properly, this might change.
+
+
+
 To Do:
 	- Package better
 	- Make run as daemon
-	- More internal statistics to send to graphite. Unsure how to handle well with BlockingQueue
+	- More internal statistics to send to graphite. Unsure how to handle well
+	with BlockingQueue
 
 Build Requirements:
 	slf4j - (1.6.4) http://www.slf4j.org/
@@ -53,5 +62,5 @@ Build Requirements:
 		a different source.
 	vijava - (520110926) http://vijava.sourceforge.net/
 	dom4j - (1.6.1) - packaged with vijava
-	commons-cli - (1.2) http://commons.apache.org/cli/ - pretty easy to remove this
-		if you don't want to use it.
+	commons-cli - (1.2) http://commons.apache.org/cli/ - pretty easy to remove
+	    this if you don't want to use it.

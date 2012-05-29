@@ -1,3 +1,19 @@
+/*
+ * Copyright 2012 Tim Conrad - tim@timconrad.org
+ *
+ *    Licensed under the Apache License, Version 2.0 (the "License");
+ *    you may not use this file except in compliance with the License.
+ *    You may obtain a copy of the License at
+ *
+ *        http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *    Unless required by applicable law or agreed to in writing, software
+ *    distributed under the License is distributed on an "AS IS" BASIS,
+ *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *    See the License for the specific language governing permissions and
+ *    limitations under the License.
+ */
+
 package org.timconrad.vmstats;
 
 import java.rmi.RemoteException;
@@ -30,6 +46,7 @@ public class statsGrabber implements Runnable {
 	private final Hashtable<String, Hashtable<String,String>> perfKeys;
 	private final Hashtable<String, String> appConfig;
 	private String mobType = "bob";
+    private volatile boolean cancelled;
 	
 	private static final Logger logger = LoggerFactory.getLogger(statsGrabber.class);
 	
@@ -55,7 +72,7 @@ public class statsGrabber implements Runnable {
 			// probably be better. but should probably be per-thread to avoid blocking issues with a
 			// shared cache
 			
-			String vmName = vm.getName().toString();
+			String vmName = vm.getName();
 			String[] vmNameParts = vmName.split("[.]");
 			String vmNameShort = vmNameParts[0];
 			
@@ -70,67 +87,69 @@ public class statsGrabber implements Runnable {
 			PerfEntityMetricBase[] pValues = perfMgr.queryPerf(new PerfQuerySpec[] {qSpec});
 			
 			if(pValues != null) {
-				for(int i=0; i < pValues.length; i++) {
-					PerfEntityMetric pem = (PerfEntityMetric) pValues[i];
-					PerfMetricSeries[] vals = pem.getValue();
-					PerfSampleInfo[] infos = pem.getSampleInfo();				
-					// FIXME: just using the first record here, probably not the best thing in the world.
-					long timestamp = infos[0].getTimestamp().getTimeInMillis() / 1000;
-					
-					for(int x = 0; vals != null && x < vals.length; x++) {
-						int counterId = vals[x].getId().getCounterId();
-						// create strings for the parts of the tag.
-						String key = perfKeys.get("" + counterId).get("key");
-						String instance = vals[x].getId().getInstance();
-						// disks will be naa.12341234, change them to naa_12341234 instead
-						instance = instance.replace(".", "_");
-						// the 'none' rollup type is completely legitmate - it doesn't roll up, so it's live data
-						String rollup = perfKeys.get("" + counterId).get("rollup");
-						
-						String tag = "";
-						if(instance.equals("")) {
-							// no instance, no period required
-							tag = TAG_NS + "." + mobType + "." + vmNameShort + "." + key + "." + rollup; 
-						}else{
-							tag = TAG_NS + "." + mobType + "." + vmNameShort + "." + key + "." + instance + "." + rollup;
-						}
-						// tag should be vmstats.VMTAG.hostname.cpu.whatever.whatever at this point
-						
-						long stat = 0;
-						// this is a bit redundant, since we're only getting 1 stat at a time
-						// however, could allow us to get more stats with a single pass.
-						// TODO: Stuff here to make it so multiple sets of data could be retrieved simultaneously
-						if(vals[x] instanceof PerfMetricIntSeries) {
-							PerfMetricIntSeries val = (PerfMetricIntSeries) vals[x];
-							long[] longs = val.getValue();
-							for(int c=0; c < longs.length; c ++) {
-								// stat is just going to stay whatever the last one is/was
-								stat = longs[c];
-							}
-						}
-						// create the final string here
-						String graphiteData = tag + " " + stat + " " + timestamp + "\n";
-						// enabling this is VERY verbose, but often simpler to stop the graphiteWriter thread
-						// and enable this.
-						// logger.debug("graphiteData: " + graphiteData);
-						temp_results.add(graphiteData);
-						
-					}
-				}
+                for (PerfEntityMetricBase pValue : pValues) {
+                    PerfEntityMetric pem = (PerfEntityMetric) pValue;
+                    PerfMetricSeries[] vals = pem.getValue();
+                    PerfSampleInfo[] infos = pem.getSampleInfo();
+                    // FIXME: just using the first record here, probably not the best thing in the world.
+                    long timestamp = infos[0].getTimestamp().getTimeInMillis() / 1000;
+
+                    for (int x = 0; vals != null && x < vals.length; x++) {
+                        int counterId = vals[x].getId().getCounterId();
+                        // create strings for the parts of the tag.
+                        String key = perfKeys.get("" + counterId).get("key");
+                        String instance = vals[x].getId().getInstance();
+                        // disks will be naa.12341234, change them to naa_12341234 instead
+                        instance = instance.replace(".", "_");
+                        // the 'none' rollup type is completely legitmate - it doesn't roll up, so it's live data
+                        String rollup = perfKeys.get("" + counterId).get("rollup");
+
+                        String tag;
+                        if (instance.equals("")) {
+                            // no instance, no period required
+                            tag = TAG_NS + "." + mobType + "." + vmNameShort + "." + key + "." + rollup;
+                        } else {
+                            tag = TAG_NS + "." + mobType + "." + vmNameShort + "." + key + "." + instance + "." + rollup;
+                        }
+                        // tag should be vmstats.VMTAG.hostname.cpu.whatever.whatever at this point
+
+                        long stat = 0;
+                        // this is a bit redundant, since we're only getting 1 stat at a time
+                        // however, could allow us to get more stats with a single pass.
+                        // TODO: Stuff here to make it so multiple sets of data could be retrieved simultaneously
+                        if (vals[x] instanceof PerfMetricIntSeries) {
+                            PerfMetricIntSeries val = (PerfMetricIntSeries) vals[x];
+                            long[] longs = val.getValue();
+                            for (int c = 0; c < longs.length; c++) {
+                                // stat is just going to stay whatever the last one is/was
+                                stat = longs[c];
+                            }
+                        }
+                        // create the final string here
+                        String graphiteData = tag + " " + stat + " " + timestamp + "\n";
+                        // enabling this is VERY verbose, but often simpler to stop the graphiteWriter thread
+                        // and enable this.
+                        // logger.debug("graphiteData: " + graphiteData);
+                        temp_results.add(graphiteData);
+
+                    }
+                }
 				
 			}
 			
 		} catch (RuntimeFault e) {
 			logger.info("statsGrabber: Thread: " + Thread.currentThread().getName() + " +  Interrupted: " + e.getMessage());
 			e.printStackTrace();
+            System.exit(100);
 		} catch (RemoteException e) {
 			logger.info("statsGrabber: Thread: " + Thread.currentThread().getName() + " +  Interrupted: " + e.getMessage());
 			e.printStackTrace();
+            System.exit(101);
 		}
-		String[] results = temp_results.toArray(new String[temp_results.size()]);
+		// String[] results = temp_results.toArray(new String[temp_results.size()]);
 		
-		return results;
-		
+		return temp_results.toArray(new String[temp_results.size()]);
+
 	}
 	
 	private static PerfQuerySpec createPerfQuerySpec(ManagedEntity me, PerfMetricId[] metricIds, int maxSample, int interval) {
@@ -147,10 +166,14 @@ public class statsGrabber implements Runnable {
 
 		return qSpec;
 	}
+
+    public void cancel() {
+        this.cancelled = true;
+    }
 	
 	public void run() {
 		try {
-			while(true) {
+			while(!cancelled) {
 				// take item from BlockingQueue
 				ManagedEntity vm = this.mob_queue.take();
 				// run the getStats function on the vm
@@ -163,9 +186,11 @@ public class statsGrabber implements Runnable {
 			e.getStackTrace();
 			logger.info("statsGrabber: Thread: " + Thread.currentThread().getName() + " +  Interrupted: " + e.getMessage());
 			Thread.currentThread().interrupt();
+            System.exit(102);
 		} catch(Exception e) {
 			e.getStackTrace();
 			logger.info("statsGrabber: Thread: " + Thread.currentThread().getName() + " +  Interrupted: " + e.getMessage());
+            System.exit(103);
 		}
 		
 	}

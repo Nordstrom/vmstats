@@ -3,6 +3,7 @@ package org.timconrad.vmstats;
 // this goes and gets a list of vm's to send to statsGrabber
 
 import java.rmi.RemoteException;
+import java.util.Hashtable;
 import java.util.concurrent.BlockingQueue;
 
 import org.slf4j.Logger;
@@ -16,12 +17,15 @@ public class vmGrabber implements Runnable{
 	
 	private final BlockingQueue<ManagedEntity> vm_mob_queue;
 	private final BlockingQueue<ManagedEntity> esx_mob_queue;
+	private final Hashtable<String, String> appConfig;
 	private final ServiceInstance si;
 	private static final Logger logger = LoggerFactory.getLogger(vmGrabber.class);
 
-	public vmGrabber(ServiceInstance si, BlockingQueue<ManagedEntity> vm_mob_queue, BlockingQueue<ManagedEntity> esx_mob_queue) {
+	public vmGrabber(ServiceInstance si, BlockingQueue<ManagedEntity> vm_mob_queue, 
+			BlockingQueue<ManagedEntity> esx_mob_queue, Hashtable<String, String> appConfig) {
 		this.vm_mob_queue = vm_mob_queue;
 		this.esx_mob_queue = esx_mob_queue;
+		this.appConfig = appConfig;
 		this.si = si;
 	}
 	
@@ -53,29 +57,35 @@ public class vmGrabber implements Runnable{
 				
 				long vm_loop_took = vm_stop - start;
 				logger.debug("vmGrabber VM loop took " + vm_loop_took + "ms.");
-				ManagedEntity[] esx = null;
-				// get the esx nodes, aka HostSystem
-				try {
-					esx = new InventoryNavigator(this.si.getRootFolder()).searchManagedEntities("HostSystem");
-				} catch(RemoteException e) {
-					e.getStackTrace();
-					logger.info("vm grab exception: " + e);
-				}
 				
-				logger.info("Found " + esx.length + " ESX Hosts");
-				if (esx != null) {
-					// if they're not null, loop through them and send them to the
-					// statsGrabber thread to get stats for.
-					for(int i = 0; i < esx.length; i++) {
-						if(esx[i] != null) {
-							this.esx_mob_queue.put(esx[i]);
-						}
+				String graphEsx = this.appConfig.get("graphEsx");
+				if (graphEsx.contains("1")) {
+					ManagedEntity[] esx = null;
+					// get the esx nodes, aka HostSystem
+					try {
+						esx = new InventoryNavigator(this.si.getRootFolder()).searchManagedEntities("HostSystem");
+					} catch(RemoteException e) {
+						e.getStackTrace();
+						logger.info("vm grab exception: " + e);
 					}
-				}			
+					
+					logger.info("Found " + esx.length + " ESX Hosts");
+					if (esx != null) {
+						// if they're not null, loop through them and send them to the
+						// statsGrabber thread to get stats for.
+						for(int i = 0; i < esx.length; i++) {
+							if(esx[i] != null) {
+								this.esx_mob_queue.put(esx[i]);
+							}
+						}
+					}			
+					long esx_stop = System.currentTimeMillis();
+					long esx_took = esx_stop - start;
+					logger.debug("vmGrabber ESX loop took " + esx_took + "ms.");
+				}
 				
 				long stop = System.currentTimeMillis();
 				long loop_took = stop - start;
-				logger.debug("vmGrabber ESX loop took " + loop_took + "ms.");
 				// stupid simple thing to make this go every 60 seconds, since we're getting 'past data' anyways.
 				// there's probably more accurate ways of doing this.
 				long sleep_time = 60000 - loop_took;

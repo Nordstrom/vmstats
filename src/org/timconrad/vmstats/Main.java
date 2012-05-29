@@ -38,6 +38,7 @@ public class Main {
 		Boolean showEstimate = false;
 		Boolean noThreads = false;
 		Boolean noGraphite = false;
+		
 		Hashtable<String, String> appConfig = new Hashtable<String, String>();
 		
 		CommandLineParser parser = new PosixParser();
@@ -86,6 +87,10 @@ public class Main {
 		// vcs information
 		// this needs to be https://host/sdk
 		String vcsHost = "https://" + vcsHostRaw + "/sdk";
+		
+		String graphEsx = configFile.getProperty("ESX_STATS");
+		
+		appConfig.put("graphEsx", graphEsx);
 		
 		// graphite information
 		String graphiteHost = configFile.getProperty("GRAPHITE_HOST");
@@ -185,7 +190,7 @@ public class Main {
 				logger.info("ServiceInstance: " + si);
 				logger.info("PerformanceManager: " + perfMgr);
 				
-				vmGrabber vm_grabber = new vmGrabber(si, vm_mob_queue, esx_mob_queue);
+				vmGrabber vm_grabber = new vmGrabber(si, vm_mob_queue, esx_mob_queue, appConfig);
 				ExecutorService grab_exe = Executors.newCachedThreadPool();
 				grab_exe.execute(vm_grabber);
 				
@@ -203,9 +208,11 @@ public class Main {
 					vm_stat_exe.execute(vm_stats_grabber);
 				}
 				
-				statsGrabber esx_stats_grabber = new statsGrabber(perfMgr, perfKeys, esx_mob_queue, sender, appConfig, "ESX");
-				ExecutorService esx_stat_exe = Executors.newCachedThreadPool();
-				esx_stat_exe.execute(esx_stats_grabber);
+				if(graphEsx.contains("1")) {
+					statsGrabber esx_stats_grabber = new statsGrabber(perfMgr, perfKeys, esx_mob_queue, sender, appConfig, "ESX");
+					ExecutorService esx_stat_exe = Executors.newCachedThreadPool();
+					esx_stat_exe.execute(esx_stats_grabber);
+				}
 				
 				
 			}else{

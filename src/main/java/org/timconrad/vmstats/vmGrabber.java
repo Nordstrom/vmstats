@@ -1,3 +1,4 @@
+package org.timconrad.vmstats;
 /*
  * Copyright 2012 Tim Conrad - tim@timconrad.org
  *
@@ -14,7 +15,6 @@
  *    limitations under the License.
  */
 
-package org.timconrad.vmstats;
 // this is a Producer in the arrangement
 // this goes and gets a list of vm's to send to statsGrabber
 

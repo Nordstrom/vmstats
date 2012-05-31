@@ -32,7 +32,7 @@ To run:
 	stats will add a significant amount of records being sent to graphite.
 	
 	Run:
-	java -Dlog4j.configuration=log4j.properties -jar vmstats-2.0.1.jar
+	java -Dlog4j.configuration=log4j.properties -jar vmstats-<version>-jar-with-dependencies.jar
 	
 Notes:
 
@@ -45,18 +45,37 @@ Notes:
 		apparently no easy way to prune this prior to getting the stats from
 		VMware. And I'd  rather not go through the list to prune them.
 
-	This code is a bit cowardly, if exceptions are generated, the entire thing is going
-	bail. After getting some useful exceptions to handle properly, this might change.
+	This code is a bit cowardly, if exceptions are generated, the entire
+	thing is going bail. After getting some useful exceptions to handle
+	properly, this might change.
 
+	Configuration File:
+	    - There's not a lot of configuration file checking, so if all the
+	    variables aren't there, it'll just generate a null exception. You can
+	    use the -N flag to not start up any threads to check for null exceptions.
 
+Flags:
+    Assuming built with commons-cli, which the main builds will be, there are
+    flags available:
+
+    -P - Display the Performance Manager metrics that are available and exit
+    -E - Estimate the # of data points that will be written per cycle. This
+        number is currently fairly off - probably 3x too much.
+    -N - Don't start up any of the threads except for the main thread.
+    -g - Don't send any stats to graphite. Helpful for doing basic debugging
+        of configuration.
 
 To Do:
-	- Package better
 	- Make run as daemon
 	- More internal statistics to send to graphite. Unsure how to handle well
-	with BlockingQueue
+        with BlockingQueue
+	- Allow stats to be flushed to disk locally - mostly for debugging purposes
 
 Build Requirements:
+
+    This project is now a maven project, so it should auto-grab these dependencies
+    for you.
+
 	slf4j - (1.6.4) http://www.slf4j.org/
 	log4j - (1.2.16) http://logging.apache.org/log4j/1.2/ - could probably use
 		a different source.

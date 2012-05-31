@@ -1,3 +1,4 @@
+package org.timconrad.vmstats;
 /*
  * Copyright 2012 Tim Conrad - tim@timconrad.org
  *
@@ -14,7 +15,6 @@
  *    limitations under the License.
  */
 
-package org.timconrad.vmstats;
 
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -169,7 +169,7 @@ public class Main {
 		
 		if(showPerfMgr) {
 			// show the performance keys that are available to the user
-			System.out.println("Showing Performance Counter Enttites available:");
+			System.out.println("Showing Performance Counter Entities available:");
 			System.out.println("Read the following link for more information:");
 			System.out.println("http://vijava.sourceforge.net/vSphereAPIDoc/ver5/ReferenceGuide/vim.PerformanceManager.html");
 			Enumeration<String> keys = perfKeys.keys();
@@ -203,7 +203,7 @@ public class Main {
                 metricCount = perfKeys.size() * vms.length;
                 System.out.println("There are currently " + vms.length + " Virtual Machines known to this vCenter");
             }
-			System.out.println("There will be approximatly " + metricCount +  " stats written to graphite per time period");
+			System.out.println("There will be approximately " + metricCount +  " stats written to graphite per time period");
 			System.out.println("This is way way way off, probably x3 at this point");
 			System.exit(0);
 		}
@@ -224,7 +224,9 @@ public class Main {
 					GraphiteWriter graphite = new GraphiteWriter(graphiteHost, graphitePort, sender);
 					ExecutorService graph_exe = Executors.newCachedThreadPool();
 					graph_exe.execute(graphite);
-				}
+				}else{
+                    System.out.println("Graphite output has been disabled via the -g flag.");
+                }
 				
 				for(int i = 1; i <= MAX_STAT_THREADS; i++ ) {
 					statsGrabber vm_stats_grabber = new statsGrabber(perfMgr, perfKeys, vm_mob_queue, sender, appConfig, "vm");

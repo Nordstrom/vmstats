@@ -1,0 +1,31 @@
+<assembly>
+    <id>dist</id>
+    <formats>
+        <format>zip</format>
+        <format>tar.gz</format>
+    </formats>
+    <files>
+        <file>
+            <source>README.txt</source>
+            <outputDirectory>/</outputDirectory>
+        </file>
+        <file>
+            <source>log4j.properties</source>
+            <outputDirectory>/</outputDirectory>
+        </file>
+        <file>
+            <source>vmstats.default.properties</source>
+            <outputDirectory>/</outputDirectory>
+        </file>
+        <file>
+            <source>target/${project.artifactId}-${project.version}-jar-with-dependencies.jar</source>
+            <outputDirectory>/</outputDirectory>
+        </file>
+    </files>
+    <fileSets>
+        <fileSet>
+            <directory>/src</directory>
+            <outputDirectory>source/src</outputDirectory>
+        </fileSet>
+    </fileSets>
+</assembly>

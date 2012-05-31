@@ -4,7 +4,6 @@
     <CLASSES>
       <root url="jar://$PROJECT_DIR$/lib/slf4j-log4j12-1.6.4.jar!/" />
       <root url="jar://$PROJECT_DIR$/lib/slf4j-api-1.6.4.jar!/" />
-      <root url="jar://$PROJECT_DIR$/lib/log4j-1.2.16.jar!/" />
     </CLASSES>
     <JAVADOC />
     <SOURCES />

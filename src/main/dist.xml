@@ -10,7 +10,11 @@
             <outputDirectory>/</outputDirectory>
         </file>
         <file>
-            <source>log4j.properties</source>
+            <source>log4j.console.properties</source>
+            <outputDirectory>/</outputDirectory>
+        </file>
+        <file>
+            <source>log4j.rollinglog.properties</source>
             <outputDirectory>/</outputDirectory>
         </file>
         <file>

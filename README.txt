@@ -30,6 +30,10 @@ To run:
 	
 	Configure vmstats.properties to suit your environment. Enabling ESX
 	stats will add a significant amount of records being sent to graphite.
+
+	Pick either log4j.rollinglog.properties or log4j.console.properties for
+	how you want logging messages handled. Clearly you could create your own
+	file, as well. Rename the log4j file or adjust the run string below.
 	
 	Run:
 	java -Dlog4j.configuration=log4j.properties -jar vmstats-<version>-jar-with-dependencies.jar

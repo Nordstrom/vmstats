@@ -30,7 +30,7 @@ import com.vmware.vim25.mo.InventoryNavigator;
 import com.vmware.vim25.mo.ManagedEntity;
 import com.vmware.vim25.mo.ServiceInstance;
 
-public class vmGrabber implements Runnable{
+class vmGrabber implements Runnable{
 	
 	private final BlockingQueue<ManagedEntity> vm_mob_queue;
 	private final BlockingQueue<ManagedEntity> esx_mob_queue;
@@ -64,8 +64,8 @@ public class vmGrabber implements Runnable{
                     System.exit(200);
 				}
 				
-				logger.info("Found " + vms.length + " Virtual Machines");
 				if (vms != null) {
+                    logger.info("Found " + vms.length + " Virtual Machines");
 					// if they're not null, loop through them and send them to the
 					// statsGrabber thread to get stats for.
                     for (ManagedEntity vm : vms) {
@@ -73,7 +73,9 @@ public class vmGrabber implements Runnable{
                             this.vm_mob_queue.put(vm);
                         }
                     }
-				}
+				}else{
+                    logger.info("Found null virtual machines. Something's probably wrong.");
+                }
 				long vm_stop = System.currentTimeMillis();
 				long vm_loop_took = vm_stop - start;
 				logger.debug("vmGrabber VM loop took " + vm_loop_took + "ms.");

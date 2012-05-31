@@ -21,7 +21,7 @@ import java.util.concurrent.BlockingQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class GraphiteWriter implements Runnable{
+class GraphiteWriter implements Runnable{
 	private static final Logger logger = LoggerFactory.getLogger(GraphiteWriter.class);
 	private final BlockingQueue<String[]> dumper;
 	private String host = null;

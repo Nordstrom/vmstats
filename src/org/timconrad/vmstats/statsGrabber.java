@@ -38,7 +38,7 @@ import com.vmware.vim25.mo.PerformanceManager;
 // this is the consumer in the arrangement
 // this goes and gets the stats for a particular VM
 
-public class statsGrabber implements Runnable {
+class statsGrabber implements Runnable {
 
 	private final BlockingQueue<ManagedEntity> mob_queue;
 	private final BlockingQueue<String[]> sender;

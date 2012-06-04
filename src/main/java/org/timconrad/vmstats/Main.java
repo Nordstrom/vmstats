@@ -16,15 +16,14 @@ package org.timconrad.vmstats;
  */
 
 
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.rmi.RemoteException;
-import java.util.Enumeration;
-import java.util.Hashtable;
-import java.util.Properties;
+import java.util.*;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
@@ -37,10 +36,7 @@ import com.vmware.vim25.mo.ManagedEntity;
 import com.vmware.vim25.mo.PerformanceManager;
 import com.vmware.vim25.mo.ServiceInstance;
 
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.CommandLineParser;
-import org.apache.commons.cli.Options;
-import org.apache.commons.cli.PosixParser;
+import org.apache.commons.cli.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -49,11 +45,12 @@ public class Main {
 	public static void main(String[] args) {
 		
 		Logger logger = LoggerFactory.getLogger(Main.class);
-		Properties configFile = new Properties();
+		Properties config = new Properties();
 		Boolean showPerfMgr = false;
 		Boolean showEstimate = false;
 		Boolean noThreads = false;
 		Boolean noGraphite = false;
+        File configFile = new File("vmstats.properties");
 		
 		Hashtable<String, String> appConfig = new Hashtable<String, String>();
 		
@@ -64,9 +61,17 @@ public class Main {
 		options.addOption("E", "estimate", false, "Estimate the # of counters written to graphite and exit");
 		options.addOption("N", "noThreads", false, "Don't start any threads, just run the main part (helpful for troubleshooting initial issues");
 		options.addOption("g", "noGraphite", false, "Don't send anything to graphite");
-		
+        options.addOption("c", "configFile", true, "Configuration file for vmstats - defaults to 'vmstats.properties' in the .jar directory");
+        options.addOption("h", "help", false, "show help");
+
 		try {
 			CommandLine line = parser.parse(options,  args);
+            if(line.hasOption("help")){
+                System.out.println("vmstats.jar -Dlog4j.configuration=file:/path/to/log4j.properties [options]");
+                HelpFormatter formatter = new HelpFormatter();
+                formatter.printHelp("vmstats.jar", options);
+                System.exit(0);
+            }
 			if(line.hasOption("perfMgr")){
 				showPerfMgr = true;
 			}
@@ -79,12 +84,27 @@ public class Main {
 			if(line.hasOption("noGraphite")){
 				noGraphite = true;
 			}
+            if(line.hasOption("configFile")){
+                // if the user adds a custom config flag, use it. Otherwise they'll get the default.
+                String file = line.getOptionValue("configFile");
+                File optFile = new File(file);
+                boolean exists = optFile.exists();
+                // check to make sure the file exists.
+                if(!exists) {
+                    System.out.println("The configuration file doesn't seem to exist in path: " + file);
+                    System.exit(0);
+                }else{
+                    configFile = optFile;
+                }
+
+            }
 		}catch(org.apache.commons.cli.ParseException e) {
-			System.out.println("Unexpected exception: " + e.getMessage());
+			System.out.println("CLI options exception: " + e.getMessage());
+            e.printStackTrace();
 		}
 		
 		try {
-			configFile.load(new FileInputStream("vmstats.properties"));
+			config.load(new FileInputStream(configFile));
 		} catch (FileNotFoundException e) {
 			logger.info("Configuration file not found!\n\tException: " + e );
 			System.exit(-1);
@@ -92,31 +112,59 @@ public class Main {
 			logger.info("Configuration file not found!\n\tException: " + e );
 			System.exit(-1);
 		}
-		
+
+        Enumeration configOpts = config.propertyNames();
+        // this will have to be manually updated.
+        String[] expectedOptions = {"VCS_TAG", "VCS_USER", "GRAPHITE_PORT",
+                "GRAPHITE_TAG", "VCS_HOST", "VCS_PASS", "MAX_STAT_THREADS",
+                "GRAPHITE_HOST", "ESX_STATS"};
+        ArrayList<String> matchedOptions = new ArrayList<String>();
+        while(configOpts.hasMoreElements()) {
+            String optTmp = (String) configOpts.nextElement();
+            for(int i = 0; i < expectedOptions.length; i++) {
+                if(optTmp.equals(expectedOptions[i])) {
+                    matchedOptions.add(optTmp);
+                }
+
+            }
+
+        }
+
+        if(expectedOptions.length != matchedOptions.size()) {
+            // this kinda blows, but better than throwing a null pointer exception
+            // or doing try/catch for each possible option below.
+            System.out.println("Configuration file options are missing");
+            System.exit(-255);
+        }
+
 		// Get settings from config file
-		
-		String vcsHostRaw = configFile.getProperty("VCS_HOST");
-		String vcsUser = configFile.getProperty("VCS_USER");
-		String vcsPass = configFile.getProperty("VCS_PASS");
-		String vcsTag = configFile.getProperty("VCS_TAG");
+		String vcsHostRaw = config.getProperty("VCS_HOST");
+		String vcsUser = config.getProperty("VCS_USER");
+		String vcsPass = config.getProperty("VCS_PASS");
+		String vcsTag = config.getProperty("VCS_TAG");
 		appConfig.put("vcsTag", vcsTag);
 		// vcs information
 		// this needs to be https://host/sdk
 		String vcsHost = "https://" + vcsHostRaw + "/sdk";
 		
-		String graphEsx = configFile.getProperty("ESX_STATS");
+		String graphEsx = config.getProperty("ESX_STATS");
 		
 		appConfig.put("graphEsx", graphEsx);
 		
 		// graphite information
-		String graphiteHost = configFile.getProperty("GRAPHITE_HOST");
-		int graphitePort = Integer.parseInt(configFile.getProperty("GRAPHITE_PORT"));
-		String graphiteTag = configFile.getProperty("GRAPHITE_TAG");
-		
-		appConfig.put("graphiteTag", graphiteTag);
+		String graphiteHost = config.getProperty("GRAPHITE_HOST");
+		int graphitePort = Integer.parseInt(config.getProperty("GRAPHITE_PORT"));
+		String graphiteTag = config.getProperty("GRAPHITE_TAG");
+
+        try {
+            appConfig.put("graphiteTag", graphiteTag);
+        }catch(NullPointerException e) {
+            System.out.println("Issue with configuration file - Missing GRAPHITE_TAG");
+            System.exit(-1);
+        }
 		
 		// TODO: make this dynamic. maybe.
-		int MAX_STAT_THREADS = Integer.parseInt(configFile.getProperty("MAX_STAT_THREADS"));
+		int MAX_STAT_THREADS = Integer.parseInt(config.getProperty("MAX_STAT_THREADS"));
 		 
 		// Build internal data structures. 
 		
@@ -127,16 +175,18 @@ public class Main {
 		BlockingQueue<ManagedEntity> esx_mob_queue = new ArrayBlockingQueue<ManagedEntity>(10000);
 		// BlockingQueue to store arrays of stats - each vm generates a bunch of strings that are stored in
 		// an array. This array gets sent to the graphite thread to be sent to graphite.
-		BlockingQueue<String[]> sender = new ArrayBlockingQueue<String[]>(10000);
+        // I don't know how much this matters - but with around 250 hosts, it's about
+        // 40k stats per minute this should give enough room for much larger installs:
+        // TODO: Create a thread that monitors the queues for sending to graphite.
+		BlockingQueue<String[]> sender = new ArrayBlockingQueue<String[]>(60000);
 		
 		// Initialize these vmware types as nulls so we can see if things work properly
 		ServiceInstance si = null;
 		PerformanceManager perfMgr = null;
 		
 		try {
-			// TODO: Fix login issue - bad character?
+            // TODO: this doesn't handle some ASCII characters well, not sure why.
 			si = new ServiceInstance(new URL(vcsHost), vcsUser, vcsPass, true);
-
 		} catch (InvalidLogin e) {
 			logger.info("Invalid login vCenter: " + vcsHost + " User: " + vcsUser);
 			System.exit(-1);
@@ -151,7 +201,6 @@ public class Main {
 		if (si != null) {
 			perfMgr = si.getPerformanceManager();
 			PerfCounterInfo[] counters = perfMgr.getPerfCounter();
-			
 			// build a hash lookup to turn the counter 23 into 'disk.this.that.the.other'
 			// These are not sequential.
 			for(int i=0; i < counters.length; i++) {
@@ -165,6 +214,7 @@ public class Main {
 			}
 		}else{
 			logger.info("Issues with the service instance that wasn't properly handled");
+            System.exit(-1);
 		}
 		
 		if(showPerfMgr) {
@@ -173,9 +223,10 @@ public class Main {
 			System.out.println("Read the following link for more information:");
 			System.out.println("http://vijava.sourceforge.net/vSphereAPIDoc/ver5/ReferenceGuide/vim.PerformanceManager.html");
 			Enumeration<String> keys = perfKeys.keys();
+            System.out.println("ID|Tag|Rollup");
 			while(keys.hasMoreElements()){
 				String key = (String) keys.nextElement();
-				System.out.println("ID: " + key + " Tag: " + perfKeys.get(key).get("key") + " Rollup: " + perfKeys.get(key).get("rollup"));
+				System.out.println(key + "|" + perfKeys.get(key).get("key") + "|" + perfKeys.get(key).get("rollup"));
 			}
 			System.exit(0);
 		}
@@ -249,8 +300,5 @@ public class Main {
 			System.out.println("Not running any of the main threads");
 			System.exit(0);
 		}
-		
-
 	}
-
 }

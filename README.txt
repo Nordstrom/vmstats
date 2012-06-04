@@ -1,5 +1,3 @@
-
-
 vmstats-2.0 - The vmstats strikes back.
 
 Version 1.0 of vmstats was written in python and this is a complete rewrite.
@@ -24,6 +22,8 @@ This is currently designed around getting statistics once every minute.
 Requirements:
 	Sun/Oracle Java 1.6/1.7
 	Graphite 0.9.9+ (Could work with older, this is all I tested with)
+	VMware vCenter/ESX - Mostly tested with 4.1 at this point, but should
+	    work with other versions
 	
 To run:
 	copy vmstats.default.properties to vmstats.properties.
@@ -33,17 +33,32 @@ To run:
 	You only need a read-only account in vCenter to gather stats.
 
 	Enabling ESX stats will add a significant amount of records being sent
-	to graphite.
+	to graphite (for 240 VM's with 10 hosts, it almost doubled the amount
+	of stats)
 
 	Pick either log4j.rollinglog.properties or log4j.console.properties for
 	how you want logging messages handled. Clearly you could create your own
 	file, as well. Rename the log4j file or adjust the run string below.
+
+	Rollinglog will require /var/log/vmstats to be writable by the uid that
+	will be running this process.
 
 	Note the file: in the -Dlog4j.configuration section. It's subtle but
 	annoying.
 	
 	Run:
 	java -Dlog4j.configuration=file:log4j.properties -jar vmstats-<version>-jar-with-dependencies.jar
+
+	Run with -h to show flags.
+
+	You can specify -c /path/to/config to point to a specific config. You
+	should keep separate log4j configurations, however - they should not
+	be logging to the same file.
+
+Running in production:
+    After you have a configuration that works properly, this software is
+    meant to be run under supervisord. Please check the supervisord
+    directory for instructions on configuration.
 	
 Notes:
 
@@ -62,22 +77,11 @@ Notes:
 
 	Configuration File:
 	    - There's not a lot of configuration file checking, so if all the
-	    variables aren't there, it'll just generate a null exception. You can
-	    use the -N flag to not start up any threads to check for null exceptions.
-
-Flags:
-    Assuming built with commons-cli, which the main builds will be, there are
-    flags available:
-
-    -P - Display the Performance Manager metrics that are available and exit
-    -E - Estimate the # of data points that will be written per cycle. This
-        number is currently fairly off - probably 3x too much.
-    -N - Don't start up any of the threads except for the main thread.
-    -g - Don't send any stats to graphite. Helpful for doing basic debugging
-        of configuration.
+	    variables aren't there, it will simply say they're not all there and
+	    exit. The -N option to start up without threads can be helpful in this
+	    case.
 
 To Do:
-	- Make run as daemon
 	- More internal statistics to send to graphite. Unsure how to handle well
         with BlockingQueue
 	- Allow stats to be flushed to disk locally - mostly for debugging purposes

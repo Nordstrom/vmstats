@@ -2,6 +2,9 @@ vmstats-2.0 - The vmstats strikes back.
 
 Version 1.0 of vmstats was written in python and this is a complete rewrite.
 
+Version History:
+2.0.1 6/5/2012 - Full 2.0 release
+
 Overview:
 This will log into your vCenter server, and get all performanceMetrics/stats for
 all of your virtual machines and ESX nodes. It will then do some manipulation

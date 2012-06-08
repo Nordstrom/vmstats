@@ -15,6 +15,8 @@ package org.timconrad.vmstats;
  *    limitations under the License.
  */
 
+import java.io.BufferedWriter;
+import java.io.FileWriter;
 import java.util.concurrent.BlockingQueue;
 
 import org.slf4j.Logger;
@@ -40,6 +42,17 @@ class GraphiteWriter implements Runnable{
 	
 	public void run() {
 		GraphiteUDPWriter graphite = new GraphiteUDPWriter(host, port);
+        String threadName = Thread.currentThread().getName();
+        String fileName = "debug-gwriter-" + threadName + ".log";
+        BufferedWriter out  = null;
+        FileWriter fstream = null;
+        try {
+            fstream = new FileWriter(fileName);
+            out = new BufferedWriter(fstream);
+        }catch (Exception e) {
+            System.out.println("file open error");
+            System.exit(-1);
+        }
 		try {
 			while(!cancelled) {
 				// take the first one off the queue. this is a BlockingQueue so it blocks the loop until somethin
@@ -47,6 +60,11 @@ class GraphiteWriter implements Runnable{
 				String[] value = this.dumper.take();
 				// send it via sendMany in the graphite object
 				graphite.sendMany(value);
+                for(int x=0; x < value.length; x++) {
+                    out.write(value[x]);
+                }
+                out.flush();
+                Thread.sleep(100);
 			}
 			
 		} catch(InterruptedException e) {

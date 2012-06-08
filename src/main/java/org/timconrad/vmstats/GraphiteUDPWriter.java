@@ -63,11 +63,12 @@ class GraphiteUDPWriter {
 		 */
 		this.socket = new DatagramSocket();
 		this.socket.connect(host, port);
+        this.socket.setSendBufferSize(458752);
 	}
 	
 	public void sendOne(String input) {
 		/**
-		 * 
+		 *
 		 * Sends a single record via UDP to Graphite
 		 * 
 		 * @input - properly formatted graphite string this.tag 0 < unix time
@@ -120,6 +121,8 @@ class GraphiteUDPWriter {
                     }
                     byte[] outBuffer = new byte[sendThis.length() + 1];
                     outBuffer = sendThis.getBytes();
+                    //int bsize = this.socket.getSendBufferSize();
+                    //System.out.println("buffer size: " + bsize);
 
                     DatagramPacket udpPacket = new DatagramPacket(outBuffer, outBuffer.length, this.host, this.port);
                     this.socket.send(udpPacket);

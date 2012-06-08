@@ -114,6 +114,7 @@ class vmGrabber implements Runnable{
 				long sleep_time = 60000 - loop_took;
 				logger.debug("Sleeping for " + sleep_time + "ms.");
 				Thread.sleep(sleep_time);
+                System.exit(0);
 			}
 		} catch(InterruptedException e) {
 			Thread.currentThread().interrupt();

@@ -15,6 +15,8 @@ package org.timconrad.vmstats;
  *    limitations under the License.
  */
 
+import java.io.BufferedWriter;
+import java.io.FileWriter;
 import java.rmi.RemoteException;
 import java.util.ArrayList;
 import java.util.Hashtable;
@@ -61,7 +63,6 @@ class statsGrabber implements Runnable {
 	
 	private String[] getStats(ManagedEntity vm) {
 		final ArrayList<String> temp_results = new ArrayList<String>();
-		
 		final String TAG_NS = appConfig.get("graphiteTag") + "." + appConfig.get("vcsTag");
 		
 		PerfProviderSummary pps;
@@ -100,6 +101,7 @@ class statsGrabber implements Runnable {
                         String instance = vals[x].getId().getInstance();
                         // disks will be naa.12341234, change them to naa_12341234 instead
                         instance = instance.replace(".", "_");
+                        instance = instance.replace("/", ".");
                         // the 'none' rollup type is completely legitmate - it doesn't roll up, so it's live data
                         String rollup = perfKeys.get("" + counterId).get("rollup");
 
@@ -145,8 +147,6 @@ class statsGrabber implements Runnable {
 			e.printStackTrace();
             System.exit(101);
 		}
-		// String[] results = temp_results.toArray(new String[temp_results.size()]);
-		
 		return temp_results.toArray(new String[temp_results.size()]);
 
 	}
@@ -171,6 +171,18 @@ class statsGrabber implements Runnable {
     }
 	
 	public void run() {
+        String threadName = Thread.currentThread().getName();
+
+        String fname = "debug-statsGrabber-" + threadName + ".log";
+        BufferedWriter out = null;
+        FileWriter fstream = null;
+        try {
+            fstream = new FileWriter(fname);
+            out = new BufferedWriter(fstream);
+        }catch (Exception e) {
+            System.out.println("file open error");
+            System.exit(-1);
+        }
 		try {
 			while(!cancelled) {
 				// take item from BlockingQueue
@@ -179,6 +191,10 @@ class statsGrabber implements Runnable {
 				String[] stats = this.getStats(vm);
 				// take the output from the getStats function and send to graphite.
 				sender.put(stats);
+                for(int x = 0; x < stats.length; x++) {
+                    out.write(stats[x]);
+                }
+                out.flush();
 			}
 			
 		} catch(InterruptedException e) {

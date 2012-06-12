@@ -17,6 +17,8 @@ package org.timconrad.vmstats;
 
 import java.io.BufferedWriter;
 import java.io.FileWriter;
+import java.net.PortUnreachableException;
+import java.util.Hashtable;
 import java.util.concurrent.BlockingQueue;
 
 import org.slf4j.Logger;
@@ -28,12 +30,14 @@ class GraphiteWriter implements Runnable{
 	private String host = null;
 	private int port = 0;
     private volatile boolean cancelled;
-	
-	public GraphiteWriter(String host, int port, BlockingQueue<String[]> dumper) {
+    private final Hashtable<String, String> appConfig;
+    private boolean debugOutput = false;
+	public GraphiteWriter(String host, int port, BlockingQueue<String[]> dumper,Hashtable<String, String> appConfig) {
 		// the constructor. construct things.
 		this.dumper = dumper;
 		this.host = host;
 		this.port = port;
+        this.appConfig = appConfig;
 	}
 
     public void cancel() {
@@ -43,27 +47,38 @@ class GraphiteWriter implements Runnable{
 	public void run() {
 		GraphiteUDPWriter graphite = new GraphiteUDPWriter(host, port);
         String threadName = Thread.currentThread().getName();
-        String fileName = "debug-gwriter-" + threadName + ".log";
         BufferedWriter out  = null;
-        FileWriter fstream = null;
-        try {
-            fstream = new FileWriter(fileName);
-            out = new BufferedWriter(fstream);
-        }catch (Exception e) {
-            System.out.println("file open error");
-            System.exit(-1);
+        if(this.appConfig.get("debugOutput").contains("true")){
+            this.debugOutput = true;
         }
-		try {
+        if(this.debugOutput) {
+            String fileName = "debug-gwriter-" + threadName + ".log";
+            FileWriter fstream = null;
+            try {
+                fstream = new FileWriter(fileName);
+                out = new BufferedWriter(fstream);
+            }catch (Exception e) {
+                System.out.println("file open error");
+                System.exit(-1);
+            }
+        }
+        try{
 			while(!cancelled) {
 				// take the first one off the queue. this is a BlockingQueue so it blocks the loop until somethin
 				// comes along on the queue.
 				String[] value = this.dumper.take();
 				// send it via sendMany in the graphite object
-				graphite.sendMany(value);
-                for(int x=0; x < value.length; x++) {
-                    out.write(value[x]);
+                graphite.sendMany(value);
+                if(debugOutput) {
+                    for(int x=0; x < value.length; x++) {
+                        if(out != null) {
+                            out.write(value[x]);
+                        }
+                    }
+                    if(out != null) {
+                        out.flush();
+                    }
                 }
-                out.flush();
                 Thread.sleep(100);
 			}
 			

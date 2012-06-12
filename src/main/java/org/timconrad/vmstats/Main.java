@@ -50,6 +50,8 @@ public class Main {
 		Boolean showEstimate = false;
 		Boolean noThreads = false;
 		Boolean noGraphite = false;
+        // maybe should be a config option, it's static for now
+        int GRAPHITE_THREADS = 1;
         File configFile = new File("vmstats.properties");
 		
 		Hashtable<String, String> appConfig = new Hashtable<String, String>();
@@ -62,6 +64,8 @@ public class Main {
 		options.addOption("N", "noThreads", false, "Don't start any threads, just run the main part (helpful for troubleshooting initial issues");
 		options.addOption("g", "noGraphite", false, "Don't send anything to graphite");
         options.addOption("c", "configFile", true, "Configuration file for vmstats - defaults to 'vmstats.properties' in the .jar directory");
+        options.addOption("O", "runOnce", false, "Run the stats gatherer one time - useful for debugging");
+        options.addOption("f", "debugOutput", true, "Dump the output to a named file.");
         options.addOption("h", "help", false, "show help");
 
 		try {
@@ -84,6 +88,20 @@ public class Main {
 			if(line.hasOption("noGraphite")){
 				noGraphite = true;
 			}
+            if(line.hasOption("runOnce")) {
+                appConfig.put("runOnce","true");
+
+            }else{
+                appConfig.put("runOnce", "false");
+            }
+            if(line.hasOption("debugOutput")) {
+                appConfig.put("debugOutput", "true");
+                String file = line.getOptionValue("debugOutput");
+                appConfig.put("debugOutputFile", file);
+            }else{
+                appConfig.put("debugOutput", "false");
+            }
+
             if(line.hasOption("configFile")){
                 // if the user adds a custom config flag, use it. Otherwise they'll get the default.
                 String file = line.getOptionValue("configFile");
@@ -272,9 +290,11 @@ public class Main {
 				// it's easier sometimes to debug things without stats being sent to graphite. make noGraphite = true; to 
 				// change this.
 				if(!noGraphite) {
-					GraphiteWriter graphite = new GraphiteWriter(graphiteHost, graphitePort, sender);
-					ExecutorService graph_exe = Executors.newCachedThreadPool();
-					graph_exe.execute(graphite);
+                    for(int i = 1; i <= GRAPHITE_THREADS; i++ ) {
+                        GraphiteWriter graphite = new GraphiteWriter(graphiteHost, graphitePort, sender, appConfig);
+                        ExecutorService graph_exe = Executors.newCachedThreadPool();
+                        graph_exe.execute(graphite);
+                    }
 				}else{
                     System.out.println("Graphite output has been disabled via the -g flag.");
                 }

@@ -171,18 +171,6 @@ class statsGrabber implements Runnable {
     }
 	
 	public void run() {
-        String threadName = Thread.currentThread().getName();
-
-        String fname = "debug-statsGrabber-" + threadName + ".log";
-        BufferedWriter out = null;
-        FileWriter fstream = null;
-        try {
-            fstream = new FileWriter(fname);
-            out = new BufferedWriter(fstream);
-        }catch (Exception e) {
-            System.out.println("file open error");
-            System.exit(-1);
-        }
 		try {
 			while(!cancelled) {
 				// take item from BlockingQueue
@@ -191,10 +179,6 @@ class statsGrabber implements Runnable {
 				String[] stats = this.getStats(vm);
 				// take the output from the getStats function and send to graphite.
 				sender.put(stats);
-                for(int x = 0; x < stats.length; x++) {
-                    out.write(stats[x]);
-                }
-                out.flush();
 			}
 			
 		} catch(InterruptedException e) {

@@ -16,10 +16,7 @@ package org.timconrad.vmstats;
  */
 
 import java.io.IOException;
-import java.net.DatagramPacket;
-import java.net.DatagramSocket;
-import java.net.InetAddress;
-import java.net.UnknownHostException;
+import java.net.*;
 import java.util.Arrays;
 
 import org.slf4j.Logger;
@@ -105,25 +102,44 @@ class GraphiteUDPWriter {
 		 * Loop through an array of strings and send all of them
 		 * @input - a String array of properly formatted graphite data
 		 */
-		String sendThis;
+        int count = 1;
 
 		if(enableSend) {
 			try {
 				this.connect();
+                String sendLine;
+                String sendThis = "";
                 for (String anInput : input) {
                     // a bit awkward, but need a \n, and other fixup stuff
                     // could happen here
                     if (!anInput.contains("\n")) {
                         logger.debug("String " + anInput + " does not contain newline, adding one");
-                        sendThis = anInput + "\n";
+                        sendLine = anInput + "\n";
                     } else {
-                        sendThis = anInput;
+                        sendLine = anInput;
                     }
+
+                    sendThis += sendLine;
+
+                    if ( count == 6) {
+                        byte[] outBuffer = new byte[sendThis.length() + 1];
+                        outBuffer = sendThis.getBytes();
+                        DatagramPacket udpPacket = new DatagramPacket(outBuffer, outBuffer.length, this.host, this.port);
+                        try {
+                            this.socket.send(udpPacket);
+                        }catch(PortUnreachableException e){
+                            System.out.println("Graphite port unreachable");
+                            System.exit(0);
+                        }
+                        sendThis = "";
+                        count = 1;
+                    }else{
+                        count++;
+                    }
+                }
+                if(sendThis.length() > 0) {
                     byte[] outBuffer = new byte[sendThis.length() + 1];
                     outBuffer = sendThis.getBytes();
-                    //int bsize = this.socket.getSendBufferSize();
-                    //System.out.println("buffer size: " + bsize);
-
                     DatagramPacket udpPacket = new DatagramPacket(outBuffer, outBuffer.length, this.host, this.port);
                     this.socket.send(udpPacket);
                 }

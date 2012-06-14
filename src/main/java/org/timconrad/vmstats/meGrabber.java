@@ -16,7 +16,7 @@ package org.timconrad.vmstats;
  */
 
 // this is a Producer in the arrangement
-// this goes and gets a list of vm's to send to statsGrabber
+// this goes and gets a list of managed entities to send to statsGrabber
 
 import java.rmi.RemoteException;
 import java.util.Arrays;
@@ -30,17 +30,17 @@ import com.vmware.vim25.mo.InventoryNavigator;
 import com.vmware.vim25.mo.ManagedEntity;
 import com.vmware.vim25.mo.ServiceInstance;
 
-class vmGrabber implements Runnable{
+class meGrabber implements Runnable{
 	
 	private final BlockingQueue<ManagedEntity> vm_mob_queue;
 	private final BlockingQueue<ManagedEntity> esx_mob_queue;
 	private final Hashtable<String, String> appConfig;
 	private final ServiceInstance si;
-	private static final Logger logger = LoggerFactory.getLogger(vmGrabber.class);
+	private static final Logger logger = LoggerFactory.getLogger(meGrabber.class);
     private volatile boolean cancelled;
 
-	public vmGrabber(ServiceInstance si, BlockingQueue<ManagedEntity> vm_mob_queue, 
-			BlockingQueue<ManagedEntity> esx_mob_queue, Hashtable<String, String> appConfig) {
+	public meGrabber(ServiceInstance si, BlockingQueue<ManagedEntity> vm_mob_queue,
+                     BlockingQueue<ManagedEntity> esx_mob_queue, Hashtable<String, String> appConfig) {
 		this.vm_mob_queue = vm_mob_queue;
 		this.esx_mob_queue = esx_mob_queue;
 		this.appConfig = appConfig;
@@ -78,11 +78,11 @@ class vmGrabber implements Runnable{
                 }
 				long vm_stop = System.currentTimeMillis();
 				long vm_loop_took = vm_stop - start;
-				logger.debug("vmGrabber VM loop took " + vm_loop_took + "ms.");
+				logger.debug("meGrabber VM loop took " + vm_loop_took + "ms.");
 
                 long esx_loop_took = 0;
 				String graphEsx = this.appConfig.get("graphEsx");
-				if (graphEsx.contains("1")) {
+				if (graphEsx.contains("true")) {
 					ManagedEntity[] esx = null;
 					// get the esx nodes, aka HostSystem
 					try {
@@ -105,7 +105,7 @@ class vmGrabber implements Runnable{
 					}			
 					long esx_stop = System.currentTimeMillis();
 					esx_loop_took = esx_stop - start;
-					logger.debug("vmGrabber ESX loop took " + esx_loop_took + "ms.");
+					logger.debug("meGrabber ESX loop took " + esx_loop_took + "ms.");
 				}
 				
 				long loop_took = vm_loop_took + esx_loop_took;

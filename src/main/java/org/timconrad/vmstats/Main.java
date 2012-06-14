@@ -134,8 +134,8 @@ public class Main {
         Enumeration configOpts = config.propertyNames();
         // this will have to be manually updated.
         String[] expectedOptions = {"VCS_TAG", "VCS_USER", "GRAPHITE_PORT",
-                "GRAPHITE_TAG", "VCS_HOST", "VCS_PASS", "MAX_STAT_THREADS",
-                "GRAPHITE_HOST", "ESX_STATS"};
+                "GRAPHITE_TAG", "VCS_HOST", "VCS_PASS", "MAX_VMSTAT_THREADS",
+                "GRAPHITE_HOST", "ESX_STATS", "USE_FQDN", "DETECT_IP"};
         ArrayList<String> matchedOptions = new ArrayList<String>();
         while(configOpts.hasMoreElements()) {
             String optTmp = (String) configOpts.nextElement();
@@ -143,9 +143,7 @@ public class Main {
                 if(optTmp.equals(expectedOptions[i])) {
                     matchedOptions.add(optTmp);
                 }
-
             }
-
         }
 
         if(expectedOptions.length != matchedOptions.size()) {
@@ -164,9 +162,9 @@ public class Main {
 		// vcs information
 		// this needs to be https://host/sdk
 		String vcsHost = "https://" + vcsHostRaw + "/sdk";
-		
 		String graphEsx = config.getProperty("ESX_STATS");
-		
+        appConfig.put("USE_FQDN",config.getProperty("USE_FQDN"));
+        appConfig.put("DETECT_IP", config.getProperty("DETECT_IP"));
 		appConfig.put("graphEsx", graphEsx);
 		
 		// graphite information
@@ -182,7 +180,8 @@ public class Main {
         }
 		
 		// TODO: make this dynamic. maybe.
-		int MAX_STAT_THREADS = Integer.parseInt(config.getProperty("MAX_STAT_THREADS"));
+		int MAX_VMSTAT_THREADS = Integer.parseInt(config.getProperty("MAX_VMSTAT_THREADS"));
+        int MAX_ESXSTAT_THREADS = Integer.parseInt(config.getProperty("MAX_ESXSTAT_THREADS"));
 		 
 		// Build internal data structures. 
 		
@@ -283,9 +282,9 @@ public class Main {
 				logger.info("ServiceInstance: " + si);
 				logger.info("PerformanceManager: " + perfMgr);
 				
-				vmGrabber vm_grabber = new vmGrabber(si, vm_mob_queue, esx_mob_queue, appConfig);
+				meGrabber me_grabber = new meGrabber(si, vm_mob_queue, esx_mob_queue, appConfig);
 				ExecutorService grab_exe = Executors.newCachedThreadPool();
-				grab_exe.execute(vm_grabber);
+				grab_exe.execute(me_grabber);
 				
 				// it's easier sometimes to debug things without stats being sent to graphite. make noGraphite = true; to 
 				// change this.
@@ -299,16 +298,18 @@ public class Main {
                     System.out.println("Graphite output has been disabled via the -g flag.");
                 }
 				
-				for(int i = 1; i <= MAX_STAT_THREADS; i++ ) {
+				for(int i = 1; i <= MAX_VMSTAT_THREADS; i++ ) {
 					statsGrabber vm_stats_grabber = new statsGrabber(perfMgr, perfKeys, vm_mob_queue, sender, appConfig, "vm");
 					ExecutorService vm_stat_exe = Executors.newCachedThreadPool();
 					vm_stat_exe.execute(vm_stats_grabber);
 				}
-				
-				if(graphEsx.contains("1")) {
-					statsGrabber esx_stats_grabber = new statsGrabber(perfMgr, perfKeys, esx_mob_queue, sender, appConfig, "ESX");
-					ExecutorService esx_stat_exe = Executors.newCachedThreadPool();
-					esx_stat_exe.execute(esx_stats_grabber);
+
+				if(graphEsx.contains("true")) {
+                    for(int i = 1; i <= MAX_ESXSTAT_THREADS; i++ ) {
+                        statsGrabber esx_stats_grabber = new statsGrabber(perfMgr, perfKeys, esx_mob_queue, sender, appConfig, "ESX");
+                        ExecutorService esx_stat_exe = Executors.newCachedThreadPool();
+                        esx_stat_exe.execute(esx_stats_grabber);
+                    }
 				}
 				
 				

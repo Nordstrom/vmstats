@@ -61,10 +61,10 @@ class statsGrabber implements Runnable {
 		this.mobType = mobType;
 	}	
 	
-	private String[] getStats(ManagedEntity vm) {
+	private String[] getStats(ManagedEntity managedEntity) {
 		final ArrayList<String> temp_results = new ArrayList<String>();
 		final String TAG_NS = appConfig.get("graphiteTag") + "." + appConfig.get("vcsTag");
-		
+
 		PerfProviderSummary pps;
 		try {
 			// TODO - maek dis smrtr
@@ -72,16 +72,54 @@ class statsGrabber implements Runnable {
 			// probably be better. but should probably be per-thread to avoid blocking issues with a
 			// shared cache
 			
-			String vmName = vm.getName();
-			String[] vmNameParts = vmName.split("[.]");
-			String vmNameShort = vmNameParts[0];
-			
-			pps = this.perfMgr.queryPerfProviderSummary(vm);
+			String meName = managedEntity.getName();
+            String meNameTag = "";
+            String meNameTagIp = "";
+            String meNameTagFQDN = "";
+            String[] meNameParts = meName.split("[.]");
+            Boolean is_ip = false;
+            Boolean use_fqdn = false;
+
+            // try to detect if the ME name is an IP address
+            // per this tracker item:
+            // https://bitbucket.org/timconradinc/vmstats/issue/3/deal-well-with-host-names-which-are-ip
+
+            // if we're supposed to detect if it's an ip address, detect and
+            // change . to _
+            if(appConfig.get("DETECT_IP").contains("true")) {
+                try {
+                    int a = Integer.parseInt(meNameParts[0]);
+                    int b = Integer.parseInt(meNameParts[1]);
+                    meNameTag = meName.replace(".", "_");
+                    is_ip = true;
+                }catch(NumberFormatException e)  {
+                    // kinda silly to do this, but whatevs.
+                    is_ip = false;
+                }
+            }
+
+            // parse it if we're supposed to use the fully qualified name
+            if(appConfig.get("USE_FQDN").contains("true")) {
+                meNameTag = meName.replace(".", "_");
+                use_fqdn = true;
+            }
+
+            // make a decision here on which format of the name to actually use
+            // for the tag.
+            if(is_ip) {
+                meNameTag = meNameTagIp;
+            }else if(use_fqdn) {
+                meNameTag = meNameTagFQDN;
+            }else{
+                meNameTag = meNameParts[0];
+            }
+
+			pps = this.perfMgr.queryPerfProviderSummary(managedEntity);
 			// for VM's, this is likely always 20 seconds in this context.
 			int refreshRate = pps.getRefreshRate().intValue();
-			PerfMetricId[] pmis = this.perfMgr.queryAvailablePerfMetric(vm, null, null, refreshRate);
+			PerfMetricId[] pmis = this.perfMgr.queryAvailablePerfMetric(managedEntity, null, null, refreshRate);
 			int perfEntries = 1;
-			PerfQuerySpec qSpec = createPerfQuerySpec(vm, pmis, perfEntries, refreshRate);
+			PerfQuerySpec qSpec = createPerfQuerySpec(managedEntity, pmis, perfEntries, refreshRate);
 			// pValues always returns perfEntries results. this code hasn't been tested grabbing more than 1
 			// stat at a time.
 			PerfEntityMetricBase[] pValues = perfMgr.queryPerf(new PerfQuerySpec[] {qSpec});
@@ -101,16 +139,17 @@ class statsGrabber implements Runnable {
                         String instance = vals[x].getId().getInstance();
                         // disks will be naa.12341234, change them to naa_12341234 instead
                         instance = instance.replace(".", "_");
+                        // some other items are some/random/path, change them to dots
                         instance = instance.replace("/", ".");
-                        // the 'none' rollup type is completely legitmate - it doesn't roll up, so it's live data
+                        // the 'none' rollup type is completely legitimate - it doesn't roll up, so it's live data
                         String rollup = perfKeys.get("" + counterId).get("rollup");
 
-                        String tag;
+                        String graphiteTag;
                         if (instance.equals("")) {
                             // no instance, no period required
-                            tag = TAG_NS + "." + mobType + "." + vmNameShort + "." + key + "." + rollup;
+                            graphiteTag = TAG_NS + "." + mobType + "." + meNameTag + "." + key + "." + rollup;
                         } else {
-                            tag = TAG_NS + "." + mobType + "." + vmNameShort + "." + key + "." + instance + "." + rollup;
+                            graphiteTag = TAG_NS + "." + mobType + "." + meNameTag + "." + key + "." + instance + "." + rollup;
                         }
                         // tag should be vmstats.VMTAG.hostname.cpu.whatever.whatever at this point
 
@@ -127,7 +166,7 @@ class statsGrabber implements Runnable {
                             }
                         }
                         // create the final string here
-                        String graphiteData = tag + " " + stat + " " + timestamp + "\n";
+                        String graphiteData = graphiteTag + " " + stat + " " + timestamp + "\n";
                         // enabling this is VERY verbose, but often simpler to stop the graphiteWriter thread
                         // and enable this.
                         // logger.debug("graphiteData: " + graphiteData);

@@ -45,7 +45,7 @@ class GraphiteWriter implements Runnable{
     }
 	
 	public void run() {
-		GraphiteUDPWriter graphite = new GraphiteUDPWriter(host, port);
+        NettyTCPWriter graphite = new NettyTCPWriter(host, port);
         String threadName = Thread.currentThread().getName();
         BufferedWriter out  = null;
         if(this.appConfig.get("debugOutput").contains("true")){

@@ -87,7 +87,6 @@ Notes:
 To Do:
 	- More internal statistics to send to graphite. Unsure how to handle well
         with BlockingQueue
-	- Allow stats to be flushed to disk locally - mostly for debugging purposes
 
 Build Requirements:
 
@@ -101,3 +100,4 @@ Build Requirements:
 	dom4j - (1.6.1) - packaged with vijava
 	commons-cli - (1.2) http://commons.apache.org/cli/ - pretty easy to remove
 	    this if you don't want to use it.
+	netty - (3.5.0) http://netty.io/

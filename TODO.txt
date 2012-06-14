@@ -1,0 +1,15 @@
+Version 2.1
+- Replace my Graphite UDP code with a network framework code (Most likely TCP for the time being)
+- Make the stats counter code in Main actually go and count stats
+- Write FakeCarbon client so you can test without a graphite install
+- Write code to compare stats coming out of vmstats and stats coming into FakeCarbon
+- Change IP from 1.1.1.1 to 1_1_1_1 - sense & configure via flags
+- Change host.example.com to host_example_com
+- Get the parent information for a VM - so it becomes vmstats.CLUSTER.vmname.stat...
+
+Version 2.2+
+- A better/new manager thread that will help with exception handling & keep track of various stats
+- Figure out how to mock up the VMware web services so tests can run without an actual vCenter/ESX node
+- With mock services, write unit tests
+- Add back in sending to Graphite via TCP
+- Add in sending to Graphite via AMQP

@@ -50,6 +50,7 @@ public class NettyTCPWriter {
                         Executors.newCachedThreadPool()));
 
         this.bootstrap.setPipelineFactory(new NettyTCPWriterPipelineFactory());
+        this.bootstrap.setOption("tcpNoDelay", true);
         // TODO: do some exception handling here
         this.future = this.bootstrap.connect(new InetSocketAddress(this.host, this.port));
         this.channel = this.future.awaitUninterruptibly().getChannel();

@@ -1,4 +1,3 @@
-
 syntax: regexp
 ^vmstats\.properties$
 syntax: regexp

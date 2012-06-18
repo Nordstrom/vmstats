@@ -73,6 +73,7 @@ class statsGrabber implements Runnable {
 			// shared cache
 			
 			String meName = managedEntity.getName();
+            meName = meName.replace(" ", "_");
             String meNameTag = "";
             String meNameTagIp = "";
             String meNameTagFQDN = "";
@@ -90,7 +91,7 @@ class statsGrabber implements Runnable {
                 try {
                     int a = Integer.parseInt(meNameParts[0]);
                     int b = Integer.parseInt(meNameParts[1]);
-                    meNameTag = meName.replace(".", "_");
+                    meNameTagIp = meName.replace(".", "_");
                     is_ip = true;
                 }catch(NumberFormatException e)  {
                     // kinda silly to do this, but whatevs.
@@ -100,7 +101,7 @@ class statsGrabber implements Runnable {
 
             // parse it if we're supposed to use the fully qualified name
             if(appConfig.get("USE_FQDN").contains("true")) {
-                meNameTag = meName.replace(".", "_");
+                meNameTagFQDN = meName.replace(".", "_");
                 use_fqdn = true;
             }
 

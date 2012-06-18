@@ -17,6 +17,7 @@ package org.timconrad.vmstats;
 
 import java.io.BufferedWriter;
 import java.io.FileWriter;
+import java.io.IOException;
 import java.net.PortUnreachableException;
 import java.util.Hashtable;
 import java.util.concurrent.BlockingQueue;
@@ -46,6 +47,11 @@ class GraphiteWriter implements Runnable{
 	
 	public void run() {
         NettyTCPWriter graphite = new NettyTCPWriter(host, port);
+        try {
+            graphite.connect();
+        } catch (IOException e) {
+            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+        }
         String threadName = Thread.currentThread().getName();
         BufferedWriter out  = null;
         if(this.appConfig.get("debugOutput").contains("true")){
@@ -84,11 +90,13 @@ class GraphiteWriter implements Runnable{
 			
 		} catch(InterruptedException e) {
 			e.getStackTrace();
+            e.printStackTrace();
 			logger.info("Thread: " + Thread.currentThread().getName() + "Interrupted: " + e.getMessage());
 			Thread.currentThread().interrupt();
             System.exit(300);
 		} catch(Exception e) {
 			e.getStackTrace();
+            e.printStackTrace();
 			logger.info("Thread: " + Thread.currentThread().getName() + " +  Interrupted: " + e.getMessage());
             System.exit(301);
 		}

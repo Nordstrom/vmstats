@@ -1,8 +1,9 @@
-package org.timconrad.fakecarbon;// this is the file header.
+package org.timconrad.fakecarbon;
 
 import org.apache.commons.cli.*;
 import org.jboss.netty.bootstrap.ServerBootstrap;
 import org.jboss.netty.channel.socket.nio.NioClientSocketChannelFactory;
+import org.jboss.netty.channel.socket.nio.NioServerSocketChannelFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -13,9 +14,14 @@ import java.util.concurrent.Executors;
 public class Main {
 
     private int port = 2003;
+
+    public Main(int port) {
+        this.port = port;
+    }
+
     public void run(Hashtable<String, String> appConfig) {
         ServerBootstrap bootstrap = new ServerBootstrap(
-                new NioClientSocketChannelFactory(
+                new NioServerSocketChannelFactory(
                         Executors.newCachedThreadPool(),
                         Executors.newCachedThreadPool()));
 
@@ -34,10 +40,11 @@ public class Main {
         CommandLineParser parser = new PosixParser();
         Options options = new Options();
 
-        options.addOption("p", "port", true, "Port to run on");
+        options.addOption("p", "port", true, "Port to run on (default:2003)");
         options.addOption("D", "displayAll", false, "Log all incoming packets");
         options.addOption("d", "displayBad", false, "Log only incoming malformed packets");
         options.addOption("h", "help", false, "show this help");
+        int somePort = 2003;
 
         try{
             CommandLine line = parser.parse(options, args);
@@ -45,6 +52,11 @@ public class Main {
                 HelpFormatter formatter = new HelpFormatter();
                 formatter.printHelp("FakeCarbon.jar", options);
                 System.exit(0);
+            }
+
+            if(line.hasOption("port")) {
+                System.out.println("Say nothing, act casual");
+                somePort = Integer.parseInt(line.getOptionValue("port"));
             }
 
             if(line.hasOption("displayAll")){
@@ -64,7 +76,7 @@ public class Main {
             System.exit(-1);
         }
 
-        System.out.println("Hello, world!");
-        new Main().run(appConfig);
+        System.out.println("Fake Carbon listener starting up on port " + somePort);
+        new Main(somePort).run(appConfig);
     }
 }

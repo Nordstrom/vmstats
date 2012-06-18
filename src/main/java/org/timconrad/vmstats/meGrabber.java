@@ -116,6 +116,7 @@ class meGrabber implements Runnable{
 				Thread.sleep(sleep_time);
                 // check the config object if it's determined to only run one time
                 if(appConfig.get("runOnce").contains("true")){
+                    logger.info("Run once flag detected, exiting now.");
                     System.exit(0);
                 }
 			}

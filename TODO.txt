@@ -1,10 +1,10 @@
 Version 2.1
-- Replace my Graphite UDP code with a network framework code (Most likely TCP for the time being)
+- Replace my Graphite UDP code with a network framework code (Most likely TCP for the time being) - done
 - Make the stats counter code in Main actually go and count stats
-- Write FakeCarbon client so you can test without a graphite install
+- Write FakeCarbon client so you can test without a graphite install - mostly done
 - Write code to compare stats coming out of vmstats and stats coming into FakeCarbon
-- Change IP from 1.1.1.1 to 1_1_1_1 - sense & configure via flags
-- Change host.example.com to host_example_com
+- Change IP from 1.1.1.1 to 1_1_1_1 - sense & configure via flags - done
+- Change host.example.com to host_example_com - done
 - Get the parent information for a VM - so it becomes vmstats.CLUSTER.vmname.stat...
 
 Version 2.2+

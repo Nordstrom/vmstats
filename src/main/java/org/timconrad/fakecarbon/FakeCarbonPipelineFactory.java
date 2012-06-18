@@ -1,4 +1,4 @@
-package org.timconrad.fakecarbon;// this is the file header.
+package org.timconrad.fakecarbon;
 
 import static org.jboss.netty.channel.Channels.*;
 
@@ -9,9 +9,7 @@ import org.jboss.netty.handler.codec.frame.Delimiters;
 import org.jboss.netty.handler.codec.string.StringDecoder;
 import org.jboss.netty.handler.codec.string.StringEncoder;
 
-import java.net.InetSocketAddress;
 import java.util.Hashtable;
-import java.util.concurrent.Executors;
 
 public class FakeCarbonPipelineFactory implements ChannelPipelineFactory {
 
@@ -28,7 +26,7 @@ public class FakeCarbonPipelineFactory implements ChannelPipelineFactory {
         pipeline.addLast("decoder", new StringDecoder());
         pipeline.addLast("encoder", new StringEncoder());
         pipeline.addLast("handler", new FakeCarbonHandler(appConfig));
-        return pipeline();
+        return pipeline;
     }
 
 }

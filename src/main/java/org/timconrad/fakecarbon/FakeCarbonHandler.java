@@ -1,4 +1,4 @@
-package org.timconrad.fakecarbon;// this is the file header.
+package org.timconrad.fakecarbon;
 
 import org.jboss.netty.channel.*;
 import org.slf4j.Logger;
@@ -10,11 +10,32 @@ public class FakeCarbonHandler extends SimpleChannelUpstreamHandler {
 
     private final Hashtable<String, String> appConfig;
     private static final Logger logger = LoggerFactory.getLogger(FakeCarbonHandler.class);
-    private int count = 0;
+    private int count = 1;
 
     public FakeCarbonHandler(Hashtable<String, String> appConfig) {
-        this.appConfig = appConfig;
+       this.appConfig = appConfig;
     }
+
+    public boolean checkStat(String stat) {
+        boolean results = false;
+        String[] tokens = stat.split("[ ]+");
+        try {
+            Float.parseFloat(tokens[1]);
+            results = true;
+        }catch(NumberFormatException e){
+            results = false;
+            logger.debug("string: " + stat + " Error in stat field.");
+        }
+        try {
+            Float.parseFloat(tokens[2]);
+            results = true;
+        }catch(NumberFormatException e) {
+            results = false;
+            logger.debug("string: " + stat + " Error in stat field.");
+        }
+        return results;
+    }
+
     @Override
     public void handleUpstream(ChannelHandlerContext ctx, ChannelEvent e) throws Exception {
         if(e instanceof ChannelStateEvent){
@@ -29,10 +50,27 @@ public class FakeCarbonHandler extends SimpleChannelUpstreamHandler {
     }
 
     @Override
+    public void channelDisconnected(ChannelHandlerContext ctx, ChannelStateEvent e) throws Exception {
+        logger.info("Client has disconnectd. Counter: " + count);
+    }
+
+    @Override
     public void messageReceived(ChannelHandlerContext ctx, MessageEvent e) {
         String request = (String) e.getMessage();
+        boolean result = checkStat(request);
+        String tag;
+        if(result) {
+            tag = "PASS";
+        }else{
+            tag = "FAIL";
+        }
         if(appConfig.get("displayAll").contains("true")){
-            logger.info("packet(" + count + "): " + request);
+            logger.info("packet(" + count + "): " + request + " results: " + tag);
+        }
+        if(appConfig.get("displayBad").contains("true")){
+            if (!result){
+                logger.info("packet(" + count + "): " + request + " results: " + tag);
+            }
         }
         count++;
     }

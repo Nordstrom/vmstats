@@ -1,0 +1,70 @@
+package org.timconrad.fakecarbon;// this is the file header.
+
+import org.apache.commons.cli.*;
+import org.jboss.netty.bootstrap.ServerBootstrap;
+import org.jboss.netty.channel.socket.nio.NioClientSocketChannelFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.net.InetSocketAddress;
+import java.util.Hashtable;
+import java.util.concurrent.Executors;
+
+public class Main {
+
+    private int port = 2003;
+    public void run(Hashtable<String, String> appConfig) {
+        ServerBootstrap bootstrap = new ServerBootstrap(
+                new NioClientSocketChannelFactory(
+                        Executors.newCachedThreadPool(),
+                        Executors.newCachedThreadPool()));
+
+        bootstrap.setPipelineFactory(new FakeCarbonPipelineFactory(appConfig));
+        bootstrap.bind(new InetSocketAddress(port));
+    }
+
+    public void setPort(int port) {
+        this.port = port;
+    }
+
+    public static void main(String[] args) {
+        Logger logger = LoggerFactory.getLogger(Main.class);
+        Hashtable<String,String> appConfig = new Hashtable<String,String>();
+
+        CommandLineParser parser = new PosixParser();
+        Options options = new Options();
+
+        options.addOption("p", "port", true, "Port to run on");
+        options.addOption("D", "displayAll", false, "Log all incoming packets");
+        options.addOption("d", "displayBad", false, "Log only incoming malformed packets");
+        options.addOption("h", "help", false, "show this help");
+
+        try{
+            CommandLine line = parser.parse(options, args);
+            if(line.hasOption("help")){
+                HelpFormatter formatter = new HelpFormatter();
+                formatter.printHelp("FakeCarbon.jar", options);
+                System.exit(0);
+            }
+
+            if(line.hasOption("displayAll")){
+                appConfig.put("displayAll", "true");
+            }else{
+                appConfig.put("displayAll", "false");
+            }
+
+            if(line.hasOption("displayBad")){
+                appConfig.put("displayBad", "true");
+            }else{
+                appConfig.put("displayBad", "false");
+            }
+        }catch(ParseException e) {
+            System.out.println("CLI options exception: " + e.getMessage());
+            e.printStackTrace();
+            System.exit(-1);
+        }
+
+        System.out.println("Hello, world!");
+        new Main().run(appConfig);
+    }
+}

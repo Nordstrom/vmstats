@@ -21,3 +21,4 @@ Version 2.2+
     - Some sort of tool to manage the carbon files so that as some of these things get renamed, the data can be managed
         in better ways
     - Remove VM's that haven't been seen for X time
+- Make a shell script to manage the startup to make the supervisord/upgrade process simple

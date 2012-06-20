@@ -1,5 +1,9 @@
 Things to know for updating:
 
+Overall:
+- You should log into your Graphite server, and monitor the logs when starting up the new code. You should monitor
+    creates.log and updates.log
+
 From 2.0.1 to 2.1
 - vmstats now uses TCP to send stats to graphite. Make sure Graphite is configured to use TCP.
 vmstats.properties changes:

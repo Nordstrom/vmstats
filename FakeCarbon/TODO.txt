@@ -1,0 +1,5 @@
+Lots - in no particular order
+
+- Add UDP support
+- Allow output to a file
+- Better handling of input.

@@ -135,7 +135,7 @@ public class Main {
         // this will have to be manually updated.
         String[] expectedOptions = {"VCS_TAG", "VCS_USER", "GRAPHITE_PORT",
                 "GRAPHITE_TAG", "VCS_HOST", "VCS_PASS", "MAX_VMSTAT_THREADS",
-                "GRAPHITE_HOST", "ESX_STATS", "USE_FQDN", "DETECT_IP"};
+                "GRAPHITE_HOST", "ESX_STATS", "USE_FQDN"};
         ArrayList<String> matchedOptions = new ArrayList<String>();
         while(configOpts.hasMoreElements()) {
             String optTmp = (String) configOpts.nextElement();
@@ -164,7 +164,6 @@ public class Main {
 		String vcsHost = "https://" + vcsHostRaw + "/sdk";
 		String graphEsx = config.getProperty("ESX_STATS");
         appConfig.put("USE_FQDN",config.getProperty("USE_FQDN"));
-        appConfig.put("DETECT_IP", config.getProperty("DETECT_IP"));
 		appConfig.put("graphEsx", graphEsx);
 		
 		// graphite information

@@ -1,15 +1,23 @@
 Version 2.1
 - Replace my Graphite UDP code with a network framework code (Most likely TCP for the time being) - done
-- Make the stats counter code in Main actually go and count stats
-- Write FakeCarbon client so you can test without a graphite install - mostly done
-- Write code to compare stats coming out of vmstats and stats coming into FakeCarbon
+- Write FakeCarbon client so you can test without a graphite install - done
 - Change IP from 1.1.1.1 to 1_1_1_1 - sense & configure via flags - done
+    -> Modified to change everything in the hostname from . to _, since you'd never really want that (I don't think)
 - Change host.example.com to host_example_com - done
-- Get the parent information for a VM - so it becomes vmstats.CLUSTER.vmname.stat...
 
 Version 2.2+
+- Write code to compare stats coming out of vmstats and stats coming into FakeCarbon
+- Get the parent information for a VM - so it becomes vmstats.CLUSTER.vmname.stat...
 - A better/new manager thread that will help with exception handling & keep track of various stats
+    -> this will be done using InterruptedException
+    -> When an exception happens, the threads will be restarted instead of the entire app exiting (at least for
+    most exceptions)
 - Figure out how to mock up the VMware web services so tests can run without an actual vCenter/ESX node
 - With mock services, write unit tests
 - Add back in sending to Graphite via TCP
 - Add in sending to Graphite via AMQP
+- Filter VM names better, so if someone has host*name(noreallytheotherone)&thathostname as a vm name, stats get sent.
+- Carbon File Management
+    - Some sort of tool to manage the carbon files so that as some of these things get renamed, the data can be managed
+        in better ways
+    - Remove VM's that haven't been seen for X time

@@ -67,7 +67,10 @@ public class FakeCarbonHandler extends SimpleChannelUpstreamHandler {
 
     @Override
     public void channelDisconnected(ChannelHandlerContext ctx, ChannelStateEvent e) throws Exception {
-        logger.info("Client has disconnectd. Counter: " + count);
+        logger.info("Client has disconnected. Counter: " + count);
+        // reset packet count to 0
+        count = 0;
+
     }
 
     @Override

@@ -10,6 +10,10 @@
             <outputDirectory>/</outputDirectory>
         </file>
         <file>
+            <source>TODO.txt</source>
+            <outputDirectory>/</outputDirectory>
+        </file>
+        <file>
             <source>log4j.console.properties</source>
             <outputDirectory>/</outputDirectory>
         </file>
@@ -28,6 +32,18 @@
         <file>
             <source>target/${project.artifactId}-${project.version}-jar-with-dependencies.jar</source>
             <outputDirectory>/</outputDirectory>
+        </file>
+        <file>
+            <source>FakeCarbon/README.txt</source>
+            <outputDirectory>/tools</outputDirectory>
+        </file>
+        <file>
+            <source>FakeCarbon/TODO.txt</source>
+            <outputDirectory>/tools</outputDirectory>
+        </file>
+        <file>
+            <source>FakeCarbon/target/FakeCarbon-1.0-PRE-jar-with-dependencies.jar</source>
+            <outputDirectory>/tools</outputDirectory>
         </file>
     </files>
     <fileSets>

@@ -27,13 +27,22 @@ Requirements:
 	Graphite 0.9.9+ (Could work with older, this is all I tested with)
 	VMware vCenter/ESX - Mostly tested with 4.1 at this point, but should
 	    work with other versions
-	
-To run:
-	copy vmstats.default.properties to vmstats.properties.
-	
-	Configure vmstats.properties to suit your environment.
 
-	You only need a read-only account in vCenter to gather stats.
+Source:
+    This project is hosted on Bit Bucket at
+	    https://bitbucket.org/timconradinc/vmstats
+
+To run:
+
+    You'll need a working Graphite installation. Follow the instructions
+    available here: http://graphite.wikidot.com/installation
+
+    By default, Graphite should be listening on TCP 2003 - but check the
+    configuration and verify this.
+
+	Copy vmstats.default.properties to vmstats.properties and configure
+	to suit your environment.  You only need a read-only account in vCenter
+	to gather stats.
 
 	Enabling ESX stats will add a significant amount of records being sent
 	to graphite (for 240 VM's with 10 hosts, it almost doubled the amount
@@ -64,7 +73,6 @@ Running in production:
     directory for instructions on configuration.
 	
 Notes:
-
 	Roll-up information:
 		- 'none' is a legitimate rollup type - it's never rolled up into
 		the jobs to be averaged or whatever
@@ -85,12 +93,11 @@ Notes:
 	    case.
 
 To Do:
-	- More internal statistics to send to graphite. Unsure how to handle well
-        with BlockingQueue
+    See TODO.txt
 
 Build Requirements:
 
-    This project is now a maven project, so it should auto-grab these dependencies
+    This project is a maven project, so it should auto-grab these dependencies
     for you.
 
 	slf4j - (1.6.4) http://www.slf4j.org/

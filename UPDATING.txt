@@ -1,0 +1,11 @@
+Things to know for updating:
+
+From 2.0.1 to 2.1
+- vmstats now uses TCP to send stats to graphite. Make sure Graphite is configured to use TCP.
+vmstats.properties changes:
+    - the ESX_STATS option went from being '1' as true to a 'true' - this needs to be manually changed
+    - vmstats.properties now has a USE_FQDN option, which should be set to true if you want stats put into graphite as
+        host_example_com instead of just host
+    - The MAX_STAT_THREADS got renamed to MAX_VMSTAT_THREADS
+    - A MAX_ESXSTAT_THREADS option got added. 2 is a good number to start with.
+

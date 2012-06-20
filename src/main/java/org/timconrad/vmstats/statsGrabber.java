@@ -73,47 +73,42 @@ class statsGrabber implements Runnable {
 			// shared cache
 			
 			String meName = managedEntity.getName();
+            // get rid of spaces
+            // TODO: get rid of other stuff here that won't translate well into graphite
+            // TODO: This won't handle every bizarre thing that people want to do with VM naming.
             meName = meName.replace(" ", "_");
             String meNameTag = "";
-            String meNameTagIp = "";
-            String meNameTagFQDN = "";
             String[] meNameParts = meName.split("[.]");
-            Boolean is_ip = false;
             Boolean use_fqdn = false;
-
-            // try to detect if the ME name is an IP address
-            // per this tracker item:
-            // https://bitbucket.org/timconradinc/vmstats/issue/3/deal-well-with-host-names-which-are-ip
-
-            // if we're supposed to detect if it's an ip address, detect and
-            // change . to _
-            if(appConfig.get("DETECT_IP").contains("true")) {
-                try {
-                    int a = Integer.parseInt(meNameParts[0]);
-                    int b = Integer.parseInt(meNameParts[1]);
-                    meNameTagIp = meName.replace(".", "_");
-                    is_ip = true;
-                }catch(NumberFormatException e)  {
-                    // kinda silly to do this, but whatevs.
-                    is_ip = false;
-                }
-            }
+            Boolean is_ip = false;
 
             // parse it if we're supposed to use the fully qualified name
             if(appConfig.get("USE_FQDN").contains("true")) {
-                meNameTagFQDN = meName.replace(".", "_");
                 use_fqdn = true;
             }
 
-            // make a decision here on which format of the name to actually use
-            // for the tag.
-            if(is_ip) {
-                meNameTag = meNameTagIp;
-            }else if(use_fqdn) {
-                meNameTag = meNameTagFQDN;
-            }else{
-                meNameTag = meNameParts[0];
+            // detect if the object name is an IP address, so that using short name
+            // doesn't shorten it to the first octet.
+            try {
+                int a = Integer.parseInt(meNameParts[0]);
+                int b = Integer.parseInt(meNameParts[1]);
+                is_ip = true;
+            }catch(NumberFormatException e) {
+                is_ip = false;
             }
+
+            if(use_fqdn) {
+                meNameTag = meName;
+            }else{
+                if(is_ip) {
+                    // make sure the whole IP is displayed
+                    meNameTag = meName;
+                }else{
+                    meNameTag = meNameParts[0];
+                }
+            }
+            // replace all the . with _
+            meNameTag = meNameTag.replace(".", "_");
 
 			pps = this.perfMgr.queryPerfProviderSummary(managedEntity);
 			// for VM's, this is likely always 20 seconds in this context.

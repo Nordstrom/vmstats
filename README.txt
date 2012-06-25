@@ -113,3 +113,8 @@ Build Requirements:
 	commons-cli - (1.2) http://commons.apache.org/cli/ - pretty easy to remove
 	    this if you don't want to use it.
 	netty - (3.5.0) http://netty.io/
+
+	Known Issues:
+
+	FakeCarbon doesn't auto-build as a part of the project. You have to build
+	that and then build the main package for a successful build.

@@ -11,6 +11,8 @@ Version 2.2+
     - The user can configure the # of intervals to gather per polling period. So, you could configure to loop every 5
         minutes with 15 20-second intervals (if you wanted to)
     - Have the option to send raw the raw stats to graphite or average/mean the data
+- Handle carbon-cache going away - currently stats just stop getting pushed
+    - possibly cache 1 or 2 cycles of data and then die - in case the issue is intermittent
 - Write code to compare stats coming out of vmstats and stats coming into FakeCarbon
 - Get the parent information for a VM - so it becomes vmstats.CLUSTER.vmname.stat...
 - A better/new manager thread that will help with exception handling & keep track of various stats

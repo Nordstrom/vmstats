@@ -97,6 +97,11 @@ Notes:
 	    exit. The -N option to start up without threads can be helpful in this
 	    case.
 
+	VMware statistics are kept in 20 second intervals. This code currently grabs
+	the statistics every 60 seconds, and only for that interval. This means that
+	there are two intervals that are lost per 60 second interval. There will be
+	some work-around for this in a future version.
+
 To Do:
     See TODO.txt
 

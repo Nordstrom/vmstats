@@ -6,6 +6,11 @@ Version 2.1
 - Change host.example.com to host_example_com - done
 
 Version 2.2+
+- Handle the 20 second internal statistics better
+    - Allow user to configure polling period - could be 1 or 5 minutes or whatever that's divisible / 20
+    - The user can configure the # of intervals to gather per polling period. So, you could configure to loop every 5
+        minutes with 15 20-second intervals (if you wanted to)
+    - Have the option to send raw the raw stats to graphite or average/mean the data
 - Write code to compare stats coming out of vmstats and stats coming into FakeCarbon
 - Get the parent information for a VM - so it becomes vmstats.CLUSTER.vmname.stat...
 - A better/new manager thread that will help with exception handling & keep track of various stats
@@ -14,7 +19,7 @@ Version 2.2+
     most exceptions)
 - Figure out how to mock up the VMware web services so tests can run without an actual vCenter/ESX node
 - With mock services, write unit tests
-- Add back in sending to Graphite via TCP
+- Add back in sending to Graphite via UDP
 - Add in sending to Graphite via AMQP
 - Filter VM names better, so if someone has host*name(noreallytheotherone)&thathostname as a vm name, stats get sent.
 - Carbon File Management

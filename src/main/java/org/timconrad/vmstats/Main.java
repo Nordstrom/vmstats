@@ -225,6 +225,7 @@ public class Main {
 				String path = counters[i].getGroupInfo().getKey() + "." + counters[i].getNameInfo().getKey();
 				temp_hash.put("key", path);
 				temp_hash.put("rollup", counters[i].getRollupType().toString());
+                // getting the perfstatstype - counters[i].getStatsType().toString();
 				// it's important to understand that the counters aren't sequential, so they have their own id.
 				perfKeys.put("" + counters[i].getKey(), temp_hash);
 			}

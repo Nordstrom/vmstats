@@ -91,7 +91,7 @@ public class Main {
             System.exit(-1);
         }
 
-        System.out.println("Fake Carbon listener starting up on port " + somePort);
+        System.out.println("Fake Carbon listener starting up on TCP@" + somePort);
         new Main(somePort).run(appConfig);
     }
 }

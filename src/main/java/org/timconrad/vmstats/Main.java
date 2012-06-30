@@ -65,7 +65,7 @@ public class Main {
 		options.addOption("g", "noGraphite", false, "Don't send anything to graphite");
         options.addOption("c", "configFile", true, "Configuration file for vmstats - defaults to 'vmstats.properties' in the .jar directory");
         options.addOption("O", "runOnce", false, "Run the stats gatherer one time - useful for debugging");
-        options.addOption("f", "debugOutput", true, "Dump the output to a named file.");
+        options.addOption("D", "debugOutput", false, "Dump the output to a thread-named file.");
         options.addOption("h", "help", false, "show help");
 
 		try {
@@ -96,8 +96,6 @@ public class Main {
             }
             if(line.hasOption("debugOutput")) {
                 appConfig.put("debugOutput", "true");
-                String file = line.getOptionValue("debugOutput");
-                appConfig.put("debugOutputFile", file);
             }else{
                 appConfig.put("debugOutput", "false");
             }
@@ -181,20 +179,23 @@ public class Main {
 		// TODO: make this dynamic. maybe.
 		int MAX_VMSTAT_THREADS = Integer.parseInt(config.getProperty("MAX_VMSTAT_THREADS"));
         int MAX_ESXSTAT_THREADS = Integer.parseInt(config.getProperty("MAX_ESXSTAT_THREADS"));
-		 
+
+        appConfig.put("MAX_VMSTAT_THREADS", String.valueOf(MAX_VMSTAT_THREADS));
+        appConfig.put("MAX_ESXSTAT_THREADS", String.valueOf(MAX_ESXSTAT_THREADS));
+
 		// Build internal data structures. 
 		
 		// use a hashtable to store performance id information
 		Hashtable<String, Hashtable<String, String>> perfKeys = new Hashtable<String, Hashtable<String, String>>();
 		// BlockingQueue to store managed objects - basically anything that vmware knows about
-		BlockingQueue<ManagedEntity> vm_mob_queue = new ArrayBlockingQueue<ManagedEntity>(10000);
-		BlockingQueue<ManagedEntity> esx_mob_queue = new ArrayBlockingQueue<ManagedEntity>(10000);
+		BlockingQueue<Object> vm_mob_queue = new ArrayBlockingQueue<Object>(10000);
+		BlockingQueue<Object> esx_mob_queue = new ArrayBlockingQueue<Object>(10000);
 		// BlockingQueue to store arrays of stats - each vm generates a bunch of strings that are stored in
 		// an array. This array gets sent to the graphite thread to be sent to graphite.
         // I don't know how much this matters - but with around 250 hosts, it's about
         // 40k stats per minute this should give enough room for much larger installs:
         // TODO: Create a thread that monitors the queues for sending to graphite.
-		BlockingQueue<String[]> sender = new ArrayBlockingQueue<String[]>(60000);
+		BlockingQueue<Object> sender = new ArrayBlockingQueue<Object>(60000);
 		
 		// Initialize these vmware types as nulls so we can see if things work properly
 		ServiceInstance si = null;
@@ -250,30 +251,7 @@ public class Main {
 		
 		if(showEstimate) {
 			// estimate the number of keys that will be updated/written to Graphite per minute
-			System.out.println("Showing estimate:");
-			System.out.println("There are " + perfKeys.size() + " Performance Metrics available");
-			ManagedEntity[] vms = null;
-			try {
-				// VirtualMachine NOT VirtualMachines
-				// get a list of virtual machines
-                if (si != null) {
-                    vms = new InventoryNavigator(si.getRootFolder()).searchManagedEntities("VirtualMachine");
-                }else{
-                    System.out.println("Error connecting to vCenter");
-                    System.exit(0);
-                }
-            } catch(RemoteException e) {
-				e.getStackTrace();
-				logger.info("vm grab exception: " + e);
-			}
-            int metricCount = 0;
-            if (vms != null) {
-                metricCount = perfKeys.size() * vms.length;
-                System.out.println("There are currently " + vms.length + " Virtual Machines known to this vCenter");
-            }
-			System.out.println("There will be approximately " + metricCount +  " stats written to graphite per time period");
-			System.out.println("This is way way way off, probably x3 at this point");
-			System.exit(0);
+			System.out.println("Currently Disabled");
 		}
 		
 		// this gets the lists of vm's from vCenter
@@ -282,7 +260,7 @@ public class Main {
 				logger.info("ServiceInstance: " + si);
 				logger.info("PerformanceManager: " + perfMgr);
 				
-				meGrabber me_grabber = new meGrabber(si, vm_mob_queue, esx_mob_queue, appConfig);
+				meGrabber me_grabber = new meGrabber(si, vm_mob_queue, esx_mob_queue, appConfig, sender);
 				ExecutorService grab_exe = Executors.newCachedThreadPool();
 				grab_exe.execute(me_grabber);
 				
@@ -317,7 +295,6 @@ public class Main {
 				logger.info("Either ServiceInstance or PerformanceManager is null, bailing.");
 			}
 		}else{
-			logger.info("foo");
 			System.out.println("Not running any of the main threads");
 			System.exit(0);
 		}

@@ -41,8 +41,8 @@ import com.vmware.vim25.mo.PerformanceManager;
 
 class statsGrabber implements Runnable {
 
-	private final BlockingQueue<ManagedEntity> mob_queue;
-	private final BlockingQueue<String[]> sender;
+	private final BlockingQueue<Object> mob_queue;
+	private final BlockingQueue<Object> sender;
 	private final PerformanceManager perfMgr;
 	private final Hashtable<String, Hashtable<String,String>> perfKeys;
 	private final Hashtable<String, String> appConfig;
@@ -52,7 +52,7 @@ class statsGrabber implements Runnable {
 	private static final Logger logger = LoggerFactory.getLogger(statsGrabber.class);
 	
 	public statsGrabber(PerformanceManager perfMgr, Hashtable<String, Hashtable<String, String>> perfKeys,
-			BlockingQueue<ManagedEntity> mob_queue, BlockingQueue<String[]> sender, Hashtable<String, String> appConfig, String mobType) {
+			BlockingQueue<Object> mob_queue, BlockingQueue<Object> sender, Hashtable<String, String> appConfig, String mobType) {
 		this.mob_queue = mob_queue;
 		this.sender = sender;
 		this.perfMgr = perfMgr;
@@ -159,15 +159,10 @@ class statsGrabber implements Runnable {
                             for (int c = 0; c < longs.length; c++) {
                                 // stat is just going to stay whatever the last one is/was
                                 stat = longs[c];
+                                String graphiteData = graphiteTag + " " + stat + " " + timestamp + "\n";
+                                temp_results.add(graphiteData);
                             }
                         }
-                        // create the final string here
-                        String graphiteData = graphiteTag + " " + stat + " " + timestamp + "\n";
-                        // enabling this is VERY verbose, but often simpler to stop the graphiteWriter thread
-                        // and enable this.
-                        // logger.debug("graphiteData: " + graphiteData);
-                        temp_results.add(graphiteData);
-
                     }
                 }
 				
@@ -206,26 +201,58 @@ class statsGrabber implements Runnable {
     }
 	
 	public void run() {
-		try {
+        long run_start = 0;
+        long total_stats = 0;
+//		try {
 			while(!cancelled) {
 				// take item from BlockingQueue
-				ManagedEntity vm = this.mob_queue.take();
-				// run the getStats function on the vm
-				String[] stats = this.getStats(vm);
-				// take the output from the getStats function and send to graphite.
-				sender.put(stats);
+                Object mob = null;
+                try {
+                    mob = this.mob_queue.take();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+                }
+
+                if(mob instanceof ManagedEntity) {
+                    // run the getStats function on the vm
+                    String[] stats = this.getStats((ManagedEntity) mob);
+                    // take the output from the getStats function and send to graphite.
+                    total_stats += stats.length;
+                    try {
+                        sender.put(stats);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+                    }
+                }else if(mob instanceof String) {
+                    if(mob.equals("start_stats")){
+                        run_start = System.currentTimeMillis();
+                    }
+                    if(mob.equals("stop_stats")) {
+                        long took = System.currentTimeMillis() - run_start;
+                        logger.info(Thread.currentThread().getName() + " took: " + took + "ms" + " and sent " + total_stats + " stats to Graphite");
+                        total_stats = 0;
+                    }
+                    try {
+                        Thread.sleep(1000);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+                    }
+                }else{
+                    logger.info("Unknown mob type, should be String or ManagedEntity");
+                    System.exit(105);
+                }
 			}
 			
-		} catch(InterruptedException e) {
-			e.getStackTrace();
-			logger.info("statsGrabber: Thread: " + Thread.currentThread().getName() + " +  Interrupted: " + e.getMessage());
-			Thread.currentThread().interrupt();
-            System.exit(102);
-		} catch(Exception e) {
-			e.getStackTrace();
-			logger.info("statsGrabber: Thread: " + Thread.currentThread().getName() + " +  Interrupted: " + e.getMessage());
-            System.exit(103);
-		}
+//		} catch(InterruptedException e) {
+//			e.getStackTrace();
+//			logger.info("statsGrabber: Thread: " + Thread.currentThread().getName() + " +  Interrupted: " + e.getMessage());
+//			Thread.currentThread().interrupt();
+//            System.exit(102);
+//		} catch(Exception e) {
+//			e.getStackTrace();
+//			logger.info("statsGrabber: Thread: " + Thread.currentThread().getName() + " +  Interrupted: " + e.getMessage());
+//            System.exit(103);
+//		}
 		
 	}
 }

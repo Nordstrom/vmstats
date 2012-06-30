@@ -1,4 +1,4 @@
-package org.timconrad.vmstats;
+package org.timconrad.vmstats.netty;
 /*
 * Copyright 2012 Tim Conrad - tim@timconrad.org
 *

@@ -32,19 +32,21 @@ import com.vmware.vim25.mo.ServiceInstance;
 
 class meGrabber implements Runnable{
 	
-	private final BlockingQueue<ManagedEntity> vm_mob_queue;
-	private final BlockingQueue<ManagedEntity> esx_mob_queue;
+	private final BlockingQueue<Object> vm_mob_queue;
+	private final BlockingQueue<Object> esx_mob_queue;
+    private final BlockingQueue<Object> sender;
 	private final Hashtable<String, String> appConfig;
 	private final ServiceInstance si;
 	private static final Logger logger = LoggerFactory.getLogger(meGrabber.class);
     private volatile boolean cancelled;
 
-	public meGrabber(ServiceInstance si, BlockingQueue<ManagedEntity> vm_mob_queue,
-                     BlockingQueue<ManagedEntity> esx_mob_queue, Hashtable<String, String> appConfig) {
+	public meGrabber(ServiceInstance si, BlockingQueue<Object> vm_mob_queue,
+                     BlockingQueue<Object> esx_mob_queue, Hashtable<String, String> appConfig, BlockingQueue<Object> sender) {
 		this.vm_mob_queue = vm_mob_queue;
 		this.esx_mob_queue = esx_mob_queue;
 		this.appConfig = appConfig;
 		this.si = si;
+        this.sender = sender;
 	}
     public void cancel() {
         this.cancelled = true;
@@ -54,6 +56,10 @@ class meGrabber implements Runnable{
 			while(!cancelled) {
 				long start = System.currentTimeMillis();
 				ManagedEntity[] vms = null;
+                for(int i = 0; i < Integer.parseInt(appConfig.get("MAX_VMSTAT_THREADS")); i++) {
+                    String stats = "start_stats";
+                    this.vm_mob_queue.put(stats);
+                }
 				try {
 					// VirtualMachine NOT VirtualMachines
 					// get a list of virtual machines
@@ -80,9 +86,18 @@ class meGrabber implements Runnable{
 				long vm_loop_took = vm_stop - start;
 				logger.debug("meGrabber VM loop took " + vm_loop_took + "ms.");
 
+                for(int i = 0; i < Integer.parseInt(appConfig.get("MAX_VMSTAT_THREADS")); i++) {
+                    String stats = "stop_stats";
+                    this.vm_mob_queue.put(stats);
+                }
+
                 long esx_loop_took = 0;
 				String graphEsx = this.appConfig.get("graphEsx");
 				if (graphEsx.contains("true")) {
+                    for(int i = 0; i < Integer.parseInt(appConfig.get("MAX_ESXSTAT_THREADS")); i++) {
+                        String stats = "start_stats";
+                        this.esx_mob_queue.put(stats);
+                    }
 					ManagedEntity[] esx = null;
 					// get the esx nodes, aka HostSystem
 					try {
@@ -106,6 +121,10 @@ class meGrabber implements Runnable{
 					long esx_stop = System.currentTimeMillis();
 					esx_loop_took = esx_stop - start;
 					logger.debug("meGrabber ESX loop took " + esx_loop_took + "ms.");
+                    for(int i = 0; i < Integer.parseInt(appConfig.get("MAX_ESXSTAT_THREADS")); i++) {
+                        String stats = "stop_stats";
+                        this.esx_mob_queue.put(stats);
+                    }
 				}
 				
 				long loop_took = vm_loop_took + esx_loop_took;
@@ -115,6 +134,8 @@ class meGrabber implements Runnable{
 				logger.debug("Sleeping for " + sleep_time + "ms.");
 				Thread.sleep(sleep_time);
                 // check the config object if it's determined to only run one time
+                String dump = "dump_stats";
+                sender.put(dump);
                 if(appConfig.get("runOnce").contains("true")){
                     logger.info("Run once flag detected, exiting now.");
                     System.exit(0);

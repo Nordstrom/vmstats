@@ -18,22 +18,22 @@ package org.timconrad.vmstats;
 import java.io.BufferedWriter;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.net.PortUnreachableException;
 import java.util.Hashtable;
 import java.util.concurrent.BlockingQueue;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.timconrad.vmstats.netty.NettyTCPWriter;
 
 class GraphiteWriter implements Runnable{
 	private static final Logger logger = LoggerFactory.getLogger(GraphiteWriter.class);
-	private final BlockingQueue<String[]> dumper;
+	private final BlockingQueue<Object> dumper;
 	private String host = null;
 	private int port = 0;
     private volatile boolean cancelled;
     private final Hashtable<String, String> appConfig;
     private boolean debugOutput = false;
-	public GraphiteWriter(String host, int port, BlockingQueue<String[]> dumper,Hashtable<String, String> appConfig) {
+	public GraphiteWriter(String host, int port, BlockingQueue<Object> dumper,Hashtable<String, String> appConfig) {
 		// the constructor. construct things.
 		this.dumper = dumper;
 		this.host = host;
@@ -47,6 +47,7 @@ class GraphiteWriter implements Runnable{
 	
 	public void run() {
         NettyTCPWriter graphite = new NettyTCPWriter(host, port);
+        long total_stats = 0;
         try {
             graphite.connect();
         } catch (IOException e) {
@@ -72,20 +73,35 @@ class GraphiteWriter implements Runnable{
 			while(!cancelled) {
 				// take the first one off the queue. this is a BlockingQueue so it blocks the loop until somethin
 				// comes along on the queue.
-				String[] value = this.dumper.take();
-				// send it via sendMany in the graphite object
-                graphite.sendMany(value);
+				Object value = this.dumper.take();
+                String[] values;
+                if(value instanceof String[]) {
+                    // send it via sendMany in the graphite object
+                    values = (String[]) value;
+                    graphite.sendMany(values);
+                    total_stats += values.length;
+                }else if(value instanceof String) {
+                    logger.debug(threadName + " got " + value);
+                    if(value.equals("dump_stats")) {
+                        logger.debug(threadName + " sent " + total_stats + " stats");
+                        total_stats = 0;
+                    }else{
+                        graphite.sendOne((String) value);
+                    }
+                }
                 if(debugOutput) {
-                    for(int x=0; x < value.length; x++) {
-                        if(out != null) {
-                            out.write(value[x]);
+                    if(value instanceof String[]) {
+                        values = (String[]) value;
+                        for(int x=0; x < values.length; x++) {
+                            if(out != null) {
+                                out.write(values[x]);
+                            }
                         }
                     }
                     if(out != null) {
                         out.flush();
                     }
                 }
-                Thread.sleep(100);
 			}
 			
 		} catch(InterruptedException e) {

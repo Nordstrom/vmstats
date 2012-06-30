@@ -5,10 +5,13 @@ Version 1.0 of vmstats was written in python and this is a complete rewrite.
 Version History:
 2.0.1 6/5/2012
     - Full 2.0 release
-2.1-PRE 6/20/2012
+2.1 6/28/2012
     - Replace my UDP code with Netty TCP-based code
     - Some flags to help debugging stuff
     - Created FakeCarbon tool for testing
+
+2.2-PRE
+    - Added stats gathering into code - can now see stats dumped to log
 
 Overview:
 This will log into your vCenter server, and get all performanceMetrics/stats for

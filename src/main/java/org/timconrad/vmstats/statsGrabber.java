@@ -67,24 +67,31 @@ class statsGrabber implements Runnable {
 
 		PerfProviderSummary pps;
 		try {
-			// TODO - maek dis smrtr
-			// this is a mess, and probably expensive to do. some sort of caching mechanism would 
-			// probably be better. but should probably be per-thread to avoid blocking issues with a
-			// shared cache
-			
 			String meName = managedEntity.getName();
-            // get rid of spaces
             // TODO: get rid of other stuff here that won't translate well into graphite
             // TODO: This won't handle every bizarre thing that people want to do with VM naming.
+            // get rid of spaces, since we never want them.
             meName = meName.replace(" ", "_");
             String meNameTag = "";
             String[] meNameParts = meName.split("[.]");
             Boolean use_fqdn = false;
             Boolean is_ip = false;
+            Boolean all_periods = false;
+            Boolean all_absolute = false;
+            Boolean all_delta = false;
 
             // parse it if we're supposed to use the fully qualified name
-            if(appConfig.get("USE_FQDN").contains("true")) {
+            if(appConfig.get("USE_FQDN").equals("true")) {
                 use_fqdn = true;
+            }
+            if(appConfig.get("SEND_ALL_PERIODS").equals("true")) {
+                all_periods = true;
+            }
+            if(appConfig.get("SEND_ALL_ABSOLUTE").equals("true")) {
+                all_absolute = true;
+            }
+            if(appConfig.get("SEND_ALL_DELTA").equals("true")) {
+                all_delta = true;
             }
 
             // detect if the object name is an IP address, so that using short name
@@ -114,7 +121,7 @@ class statsGrabber implements Runnable {
 			// for VM's, this is likely always 20 seconds in this context.
 			int refreshRate = pps.getRefreshRate().intValue();
 			PerfMetricId[] pmis = this.perfMgr.queryAvailablePerfMetric(managedEntity, null, null, refreshRate);
-			int perfEntries = 1;
+			int perfEntries = Integer.parseInt(appConfig.get("PERIODS"));
 			PerfQuerySpec qSpec = createPerfQuerySpec(managedEntity, pmis, perfEntries, refreshRate);
 			// pValues always returns perfEntries results. this code hasn't been tested grabbing more than 1
 			// stat at a time.
@@ -125,8 +132,6 @@ class statsGrabber implements Runnable {
                     PerfEntityMetric pem = (PerfEntityMetric) pValue;
                     PerfMetricSeries[] vals = pem.getValue();
                     PerfSampleInfo[] infos = pem.getSampleInfo();
-                    // FIXME: just using the first record here, probably not the best thing in the world.
-                    long timestamp = infos[0].getTimestamp().getTimeInMillis() / 1000;
 
                     for (int x = 0; vals != null && x < vals.length; x++) {
                         int counterId = vals[x].getId().getCounterId();
@@ -139,6 +144,7 @@ class statsGrabber implements Runnable {
                         instance = instance.replace("/", ".");
                         // the 'none' rollup type is completely legitimate - it doesn't roll up, so it's live data
                         String rollup = perfKeys.get("" + counterId).get("rollup");
+                        String statstype = perfKeys.get("" + counterId).get("statstype");
 
                         String graphiteTag;
                         if (instance.equals("")) {
@@ -150,22 +156,46 @@ class statsGrabber implements Runnable {
                         // tag should be vmstats.VMTAG.hostname.cpu.whatever.whatever at this point
 
                         long stat = 0;
-                        // this is a bit redundant, since we're only getting 1 stat at a time
-                        // however, could allow us to get more stats with a single pass.
-                        // TODO: Stuff here to make it so multiple sets of data could be retrieved simultaneously
                         if (vals[x] instanceof PerfMetricIntSeries) {
                             PerfMetricIntSeries val = (PerfMetricIntSeries) vals[x];
                             long[] longs = val.getValue();
+                            long running_total = 0;
                             for (int c = 0; c < longs.length; c++) {
-                                // stat is just going to stay whatever the last one is/was
                                 stat = longs[c];
+                                running_total += stat;
+                                // always create an average, even though it'll be wrong until the 3rd iteration
+                                long stat_avg = running_total / longs.length;
+                                // get the timestamp for the data
+                                long timestamp = infos[c].getTimestamp().getTimeInMillis() / 1000;
                                 String graphiteData = graphiteTag + " " + stat + " " + timestamp + "\n";
-                                temp_results.add(graphiteData);
+                                if(all_periods) {
+                                    // send all the periods
+                                    temp_results.add(graphiteData);
+                                }else if(all_absolute && statstype.equals("absolute")) {
+                                    // send if we're sending all the absolute and is an absolute type
+                                    temp_results.add(graphiteData);
+                                }else if(all_delta && statstype.equals("delta")) {
+                                    // send if we're sending all delta and is a delta type
+                                    temp_results.add(graphiteData);
+                                }else{
+                                    // send only the last data
+                                    if( c == (longs.length - 1)) {
+                                        if(statstype.equals("absolute")) {
+                                            // if it's an absolute, average the data and send it
+                                            // TODO: turn this into a flag?
+                                            graphiteData = graphiteTag + " " + stat_avg + " " + timestamp + "\n";
+                                            temp_results.add(graphiteData);
+                                        }else{
+                                            // otherwise, don't average it
+                                            graphiteData = graphiteTag + " " + stat + " " + timestamp + "\n";
+                                            temp_results.add(graphiteData);
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
                 }
-				
 			}
 			
 		} catch (RuntimeFault e) {
@@ -203,45 +233,44 @@ class statsGrabber implements Runnable {
 	public void run() {
         long run_start = 0;
         long total_stats = 0;
-//		try {
-			while(!cancelled) {
-				// take item from BlockingQueue
-                Object mob = null;
+        while(!cancelled) {
+            // take item from BlockingQueue
+            Object mob = null;
+            try {
+                mob = this.mob_queue.take();
+            } catch (InterruptedException e) {
+                e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+            }
+
+            if(mob instanceof ManagedEntity) {
+                // run the getStats function on the vm
+                String[] stats = this.getStats((ManagedEntity) mob);
+                // take the output from the getStats function and send to graphite.
+                total_stats += stats.length;
                 try {
-                    mob = this.mob_queue.take();
+                    sender.put(stats);
                 } catch (InterruptedException e) {
                     e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
                 }
-
-                if(mob instanceof ManagedEntity) {
-                    // run the getStats function on the vm
-                    String[] stats = this.getStats((ManagedEntity) mob);
-                    // take the output from the getStats function and send to graphite.
-                    total_stats += stats.length;
-                    try {
-                        sender.put(stats);
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
-                    }
-                }else if(mob instanceof String) {
-                    if(mob.equals("start_stats")){
-                        run_start = System.currentTimeMillis();
-                    }
-                    if(mob.equals("stop_stats")) {
-                        long took = System.currentTimeMillis() - run_start;
-                        logger.info(Thread.currentThread().getName() + " took: " + took + "ms" + " and sent " + total_stats + " stats to Graphite");
-                        total_stats = 0;
-                    }
-                    try {
-                        Thread.sleep(1000);
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
-                    }
-                }else{
-                    logger.info("Unknown mob type, should be String or ManagedEntity");
-                    System.exit(105);
+            }else if(mob instanceof String) {
+                if(mob.equals("start_stats")){
+                    run_start = System.currentTimeMillis();
                 }
-			}
+                if(mob.equals("stop_stats")) {
+                    long took = System.currentTimeMillis() - run_start;
+                    logger.info(Thread.currentThread().getName() + " took: " + took + "ms" + " and sent " + total_stats + " stats to Graphite");
+                    total_stats = 0;
+                }
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+                }
+            }else{
+                logger.info("Unknown mob type, should be String or ManagedEntity");
+                System.exit(105);
+            }
+        }
 			
 //		} catch(InterruptedException e) {
 //			e.getStackTrace();

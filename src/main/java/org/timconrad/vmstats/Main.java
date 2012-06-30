@@ -133,7 +133,8 @@ public class Main {
         // this will have to be manually updated.
         String[] expectedOptions = {"VCS_TAG", "VCS_USER", "GRAPHITE_PORT",
                 "GRAPHITE_TAG", "VCS_HOST", "VCS_PASS", "MAX_VMSTAT_THREADS",
-                "GRAPHITE_HOST", "ESX_STATS", "USE_FQDN"};
+                "GRAPHITE_HOST", "ESX_STATS", "USE_FQDN", "SLEEP_TIME",
+                "SEND_ALL_ABSOLUTE", "SEND_ALL_DELTA", "SEND_ALL_PERIODS"};
         ArrayList<String> matchedOptions = new ArrayList<String>();
         while(configOpts.hasMoreElements()) {
             String optTmp = (String) configOpts.nextElement();
@@ -148,7 +149,7 @@ public class Main {
             // this kinda blows, but better than throwing a null pointer exception
             // or doing try/catch for each possible option below.
             System.out.println("Configuration file options are missing");
-            System.exit(-255);
+            System.exit(-1);
         }
 
 		// Get settings from config file
@@ -182,6 +183,20 @@ public class Main {
 
         appConfig.put("MAX_VMSTAT_THREADS", String.valueOf(MAX_VMSTAT_THREADS));
         appConfig.put("MAX_ESXSTAT_THREADS", String.valueOf(MAX_ESXSTAT_THREADS));
+        String SLEEP_TIME = config.getProperty("SLEEP_TIME");
+        appConfig.put("SLEEP_TIME",SLEEP_TIME);
+        String SEND_ALL_PERIODS = config.getProperty("SEND_ALL_PERIODS");
+        appConfig.put("SEND_ALL_PERIODS",SEND_ALL_PERIODS);
+        int sleep_time = Integer.parseInt(SLEEP_TIME);
+        if((sleep_time % 20) == 0) {
+            int periods =  sleep_time / 20;
+            appConfig.put("PERIODS", String.valueOf(periods));
+        }else{
+            System.out.println("SLEEP_TIME needs to be divisible by 20, please fix");
+            System.exit(-1);
+        }
+        appConfig.put("SEND_ALL_ABSOLUTE", config.getProperty("SEND_ALL_ABSOLUTE"));
+        appConfig.put("SEND_ALL_DELTA", config.getProperty("SEND_ALL_DELTA"));
 
 		// Build internal data structures. 
 		
@@ -190,11 +205,7 @@ public class Main {
 		// BlockingQueue to store managed objects - basically anything that vmware knows about
 		BlockingQueue<Object> vm_mob_queue = new ArrayBlockingQueue<Object>(10000);
 		BlockingQueue<Object> esx_mob_queue = new ArrayBlockingQueue<Object>(10000);
-		// BlockingQueue to store arrays of stats - each vm generates a bunch of strings that are stored in
-		// an array. This array gets sent to the graphite thread to be sent to graphite.
-        // I don't know how much this matters - but with around 250 hosts, it's about
-        // 40k stats per minute this should give enough room for much larger installs:
-        // TODO: Create a thread that monitors the queues for sending to graphite.
+		// BlockingQueue to store arrays of stats - each managed object generates a bunch of strings that are stored in
 		BlockingQueue<Object> sender = new ArrayBlockingQueue<Object>(60000);
 		
 		// Initialize these vmware types as nulls so we can see if things work properly
@@ -224,9 +235,12 @@ public class Main {
 				// create a temp hash to push onto the big hash
 				Hashtable<String,String> temp_hash = new Hashtable<String, String>();
 				String path = counters[i].getGroupInfo().getKey() + "." + counters[i].getNameInfo().getKey();
+                // this is a key like cpu.run.0.summation
 				temp_hash.put("key", path);
+                // one of average, latest, maximum, minimum, none, summation
 				temp_hash.put("rollup", counters[i].getRollupType().toString());
-                // getting the perfstatstype - counters[i].getStatsType().toString();
+                // one of absolute, delta, rate
+                temp_hash.put("statstype", counters[i].getStatsType().toString());
 				// it's important to understand that the counters aren't sequential, so they have their own id.
 				perfKeys.put("" + counters[i].getKey(), temp_hash);
 			}

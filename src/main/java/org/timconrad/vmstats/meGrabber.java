@@ -130,7 +130,8 @@ class meGrabber implements Runnable{
 				long loop_took = vm_loop_took + esx_loop_took;
 				// stupid simple thing to make this go every 60 seconds, since we're getting 'past data' anyways.
 				// there's probably more accurate ways of doing this.
-				long sleep_time = 60000 - loop_took;
+                int user_sleep_time = Integer.parseInt(appConfig.get("SLEEP_TIME")) * 1000;
+				long sleep_time = user_sleep_time - loop_took;
 				logger.debug("Sleeping for " + sleep_time + "ms.");
 				Thread.sleep(sleep_time);
                 // check the config object if it's determined to only run one time

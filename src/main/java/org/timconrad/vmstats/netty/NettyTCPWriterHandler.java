@@ -31,6 +31,7 @@ public class NettyTCPWriterHandler extends SimpleChannelUpstreamHandler {
     final ClientBootstrap bootstrap;
     private final Timer timer;
     private Channel channel;
+    private ChannelFuture future;
 
     private static final Logger logger = LoggerFactory.getLogger(NettyTCPWriterHandler.class);
 
@@ -46,7 +47,7 @@ public class NettyTCPWriterHandler extends SimpleChannelUpstreamHandler {
 
     @Override
     public void channelConnected(ChannelHandlerContext ctx, ChannelStateEvent e) {
-        logger.info("Connected to graphite @ " + getRemoteAddress());
+        logger.info("Channel connected to graphite @ " + getRemoteAddress());
     }
 
     @Override
@@ -56,14 +57,7 @@ public class NettyTCPWriterHandler extends SimpleChannelUpstreamHandler {
 
     @Override
     public void channelClosed (ChannelHandlerContext ctx, ChannelStateEvent e) {
-        logger.info("Channel closed, sleeping for " + NettyTCPWriter.RECONNECT_DELAY + "s");
-//        this.timer.newTimeout(new TimerTask() {
-//            @Override
-//            public void run(Timeout timeout) throws Exception {
-//                logger.info("Reconnecting to graphite @ " + getRemoteAddress());
-//                bootstrap.connect();
-//            }
-//        }, NettyTCPWriter.RECONNECT_DELAY, TimeUnit.SECONDS);
+        logger.info("Channel closed @ " + getRemoteAddress());
     }
 
     @Override

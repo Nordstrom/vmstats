@@ -263,7 +263,8 @@ class statsGrabber implements Runnable {
                 }
                 if(mob.equals("stop_stats")) {
                     long took = System.currentTimeMillis() - run_start;
-                    logger.info(Thread.currentThread().getName() + " took: " + took + "ms" + ",sent " + total_stats + " for " + mob_count + " managed objects stats to Graphite");
+                    logger.info(Thread.currentThread().getName() + " took: " + took + "ms" + ",sent " + total_stats
+                            + " stats for " + mob_count + " managed objects stats to Graphite");
                     total_stats = 0;
                     mob_count = 0;
                 }

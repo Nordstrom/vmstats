@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/FakeCarbon/FakeCarbon.iml" filepath="$PROJECT_DIR$/FakeCarbon/FakeCarbon.iml" />
+      <module fileurl="file://$PROJECT_DIR$/vmstats.iml" filepath="$PROJECT_DIR$/vmstats.iml" />
+    </modules>
+  </component>
+</project>
+

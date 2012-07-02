@@ -81,9 +81,8 @@ class GraphiteWriter implements Runnable{
                     graphite.sendMany(values);
                     total_stats += values.length;
                 }else if(value instanceof String) {
-                    logger.debug(threadName + " got " + value);
                     if(value.equals("dump_stats")) {
-                        logger.debug(threadName + " sent " + total_stats + " stats");
+                        logger.debug(threadName + " sent " + total_stats + " stats to graphite@" + this.host + ":" + this.port);
                         total_stats = 0;
                     }else{
                         graphite.sendOne((String) value);

@@ -36,6 +36,7 @@ public class NettyTCPWriter {
     private static final Logger logger = LoggerFactory.getLogger(NettyTCPWriterHandler.class);
     private String host = "localhost";
     private int port = 2003;
+    private int reconnect_tries = 0;
 
     private Channel channel;
     private ChannelFuture future;
@@ -61,8 +62,8 @@ public class NettyTCPWriter {
         this.future = this.bootstrap.connect();
         this.channel = this.future.awaitUninterruptibly().getChannel();
 
-        if(!future.isSuccess()){
-            future.getCause().printStackTrace();
+        if(!this.future.isSuccess()){
+            this.future.getCause().printStackTrace();
             this.bootstrap.releaseExternalResources();
             logger.info("NettyTCP: future unsuccessful");
             System.exit(900);
@@ -81,13 +82,25 @@ public class NettyTCPWriter {
             if(!input.contains("\n")) {
                 input = input + "\n";
             }
-            this.lastWrite = this.channel.write(input);
+            if(!this.channel.isConnected()) {
+                logger.info("Channel not connected");
+                this.future = this.bootstrap.connect();
+                this.channel = this.future.awaitUninterruptibly().getChannel();
+                if(!this.future.isSuccess()){
+                    this.future.getCause().printStackTrace();
+                    this.bootstrap.releaseExternalResources();
+                    logger.info("NettyTCP: future unsuccessful");
+                    System.exit(910);
+                }
+            }else{
+                this.lastWrite = this.channel.write(input);
+            }
         }
     }
 
     public void disconnect() {
-        if(lastWrite != null) {
-            lastWrite.awaitUninterruptibly();
+        if(this.lastWrite != null) {
+            this.lastWrite.awaitUninterruptibly();
         }
         this.channel.close().awaitUninterruptibly();
         this.bootstrap.releaseExternalResources();

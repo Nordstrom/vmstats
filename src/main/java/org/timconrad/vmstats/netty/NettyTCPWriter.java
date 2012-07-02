@@ -22,13 +22,17 @@ import org.jboss.netty.channel.socket.nio.NioClientSocketChannelFactory;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.nio.channels.ClosedChannelException;
 import java.util.concurrent.Executors;
 
+import org.jboss.netty.util.HashedWheelTimer;
+import org.jboss.netty.util.Timer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class NettyTCPWriter {
 
+    static final int RECONNECT_DELAY = 5;
     private static final Logger logger = LoggerFactory.getLogger(NettyTCPWriterHandler.class);
     private String host = "localhost";
     private int port = 2003;
@@ -37,6 +41,7 @@ public class NettyTCPWriter {
     private ChannelFuture future;
     private ChannelFuture lastWrite;
     private ClientBootstrap bootstrap;
+    final Timer timer = new HashedWheelTimer();
 
     public NettyTCPWriter(String host, int port) {
         this.host = host;
@@ -49,10 +54,11 @@ public class NettyTCPWriter {
                         Executors.newCachedThreadPool(),
                         Executors.newCachedThreadPool()));
 
-        this.bootstrap.setPipelineFactory(new NettyTCPWriterPipelineFactory());
+        this.bootstrap.setPipelineFactory(new NettyTCPWriterPipelineFactory(this.bootstrap, this.channel, this.timer));
         this.bootstrap.setOption("tcpNoDelay", true);
         // TODO: do some exception handling here
-        this.future = this.bootstrap.connect(new InetSocketAddress(this.host, this.port));
+        bootstrap.setOption("remoteAddress", new InetSocketAddress(this.host, this.port));
+        this.future = this.bootstrap.connect();
         this.channel = this.future.awaitUninterruptibly().getChannel();
 
         if(!future.isSuccess()){
@@ -70,7 +76,7 @@ public class NettyTCPWriter {
         this.lastWrite = this.channel.write(input);
     }
 
-    public void sendMany(String[] inputs) {
+    public void sendMany(String[] inputs) throws IOException {
         for(String input : inputs) {
             if(!input.contains("\n")) {
                 input = input + "\n";
@@ -83,7 +89,7 @@ public class NettyTCPWriter {
         if(lastWrite != null) {
             lastWrite.awaitUninterruptibly();
         }
-        channel.close().awaitUninterruptibly();
+        this.channel.close().awaitUninterruptibly();
         this.bootstrap.releaseExternalResources();
     }
 

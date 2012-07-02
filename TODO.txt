@@ -5,18 +5,22 @@ Version 2.1
     -> Modified to change everything in the hostname from . to _, since you'd never really want that (I don't think)
 - Change host.example.com to host_example_com - done
 
-Version 2.2+
+Version 2.2
 - Handle the 20 second internal statistics better
     - Allow user to configure polling period - could be 1 or 5 minutes or whatever that's divisible / 20
     - The user can configure the # of intervals to gather per polling period. So, you could configure to loop every 5
         minutes with 15 20-second intervals (if you wanted to)
     - Have the option to send raw the raw stats to graphite or average/mean the data
+- Added internal statistics for how long it takes to do things and how many stats are created.
+
+Version 2.3+
+- make maven build FakeCarbon
+- Send internal statistics to Graphite for graphing
 - Handle carbon-cache going away - currently stats just stop getting pushed
     - possibly cache 1 or 2 cycles of data and then die - in case the issue is intermittent
 - Write code to compare stats coming out of vmstats and stats coming into FakeCarbon
 - Get the parent information for a VM - so it becomes vmstats.CLUSTER.vmname.stat...
-- A better/new manager thread that will help with exception handling & keep track of various stats
-    -> this will be done using InterruptedException
+- A better/new manager thread that will help with exception handling
     -> When an exception happens, the threads will be restarted instead of the entire app exiting (at least for
     most exceptions)
 - Figure out how to mock up the VMware web services so tests can run without an actual vCenter/ESX node

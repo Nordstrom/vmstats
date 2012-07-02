@@ -233,16 +233,20 @@ class statsGrabber implements Runnable {
 	public void run() {
         long run_start = 0;
         long total_stats = 0;
+        long mob_count = 0;
         while(!cancelled) {
             // take item from BlockingQueue
             Object mob = null;
             try {
                 mob = this.mob_queue.take();
             } catch (InterruptedException e) {
-                e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+                e.printStackTrace();
+                System.exit(108);
             }
 
             if(mob instanceof ManagedEntity) {
+                // keep count of mobs that we've processed
+                mob_count++;
                 // run the getStats function on the vm
                 String[] stats = this.getStats((ManagedEntity) mob);
                 // take the output from the getStats function and send to graphite.
@@ -250,7 +254,8 @@ class statsGrabber implements Runnable {
                 try {
                     sender.put(stats);
                 } catch (InterruptedException e) {
-                    e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+                    e.printStackTrace();
+                    System.exit(107);
                 }
             }else if(mob instanceof String) {
                 if(mob.equals("start_stats")){
@@ -258,30 +263,20 @@ class statsGrabber implements Runnable {
                 }
                 if(mob.equals("stop_stats")) {
                     long took = System.currentTimeMillis() - run_start;
-                    logger.info(Thread.currentThread().getName() + " took: " + took + "ms" + " and sent " + total_stats + " stats to Graphite");
+                    logger.info(Thread.currentThread().getName() + " took: " + took + "ms" + ",sent " + total_stats + " for " + mob_count + " managed objects stats to Graphite");
                     total_stats = 0;
+                    mob_count = 0;
                 }
                 try {
                     Thread.sleep(1000);
                 } catch (InterruptedException e) {
-                    e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+                    e.printStackTrace();
+                    System.exit(106);
                 }
             }else{
                 logger.info("Unknown mob type, should be String or ManagedEntity");
                 System.exit(105);
             }
         }
-			
-//		} catch(InterruptedException e) {
-//			e.getStackTrace();
-//			logger.info("statsGrabber: Thread: " + Thread.currentThread().getName() + " +  Interrupted: " + e.getMessage());
-//			Thread.currentThread().interrupt();
-//            System.exit(102);
-//		} catch(Exception e) {
-//			e.getStackTrace();
-//			logger.info("statsGrabber: Thread: " + Thread.currentThread().getName() + " +  Interrupted: " + e.getMessage());
-//            System.exit(103);
-//		}
-		
 	}
 }

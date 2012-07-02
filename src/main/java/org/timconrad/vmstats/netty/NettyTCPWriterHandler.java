@@ -15,19 +15,55 @@ package org.timconrad.vmstats.netty;
 *    limitations under the License.
 */
 
+import org.jboss.netty.bootstrap.ClientBootstrap;
 import org.jboss.netty.channel.*;
 
+import org.jboss.netty.util.Timeout;
+import org.jboss.netty.util.Timer;
+import org.jboss.netty.util.TimerTask;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.net.InetSocketAddress;
+import java.util.concurrent.TimeUnit;
+
 public class NettyTCPWriterHandler extends SimpleChannelUpstreamHandler {
+    final ClientBootstrap bootstrap;
+    private final Timer timer;
+    private Channel channel;
+
     private static final Logger logger = LoggerFactory.getLogger(NettyTCPWriterHandler.class);
 
+    public NettyTCPWriterHandler(ClientBootstrap bootstrap, Channel channel, Timer timer) {
+        this.bootstrap = bootstrap;
+        this.timer = timer;
+        this.channel = channel;
+    }
+
+    InetSocketAddress getRemoteAddress() {
+        return (InetSocketAddress) bootstrap.getOption("remoteAddress");
+    }
+
     @Override
-    public void handleUpstream (ChannelHandlerContext ctx, ChannelEvent e) throws Exception {
-        if(e instanceof ChannelStateEvent) {
-            logger.info("handleUpstream" + e.toString());
-        }
+    public void channelConnected(ChannelHandlerContext ctx, ChannelStateEvent e) {
+        logger.info("Connected to graphite @ " + getRemoteAddress());
+    }
+
+    @Override
+    public void channelDisconnected(ChannelHandlerContext ctx, ChannelStateEvent e) {
+        logger.info("Channel disconnected @ " + getRemoteAddress());
+    }
+
+    @Override
+    public void channelClosed (ChannelHandlerContext ctx, ChannelStateEvent e) {
+        logger.info("Channel closed, sleeping for " + NettyTCPWriter.RECONNECT_DELAY + "s");
+//        this.timer.newTimeout(new TimerTask() {
+//            @Override
+//            public void run(Timeout timeout) throws Exception {
+//                logger.info("Reconnecting to graphite @ " + getRemoteAddress());
+//                bootstrap.connect();
+//            }
+//        }, NettyTCPWriter.RECONNECT_DELAY, TimeUnit.SECONDS);
     }
 
     @Override
@@ -39,7 +75,9 @@ public class NettyTCPWriterHandler extends SimpleChannelUpstreamHandler {
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, ExceptionEvent e) {
         logger.info("unexpected exception from downstream " + e.getCause());
-        e.getChannel().close();
+        Throwable cause = e.getCause();
+        cause.printStackTrace();
+        ctx.getChannel().close();
     }
 
 }

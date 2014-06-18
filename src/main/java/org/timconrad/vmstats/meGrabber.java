@@ -20,12 +20,16 @@ package org.timconrad.vmstats;
 
 import java.rmi.RemoteException;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Hashtable;
+import java.util.Map;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.vmware.vim25.ManagedObjectReference;
 import com.vmware.vim25.mo.InventoryNavigator;
 import com.vmware.vim25.mo.ManagedEntity;
 import com.vmware.vim25.mo.ServiceInstance;
@@ -35,27 +39,35 @@ class meGrabber implements Runnable{
 	private final BlockingQueue<Object> vm_mob_queue;
 	private final BlockingQueue<Object> esx_mob_queue;
     private final BlockingQueue<Object> sender;
+    private HashMap<String, String> clusterMap;
 	private final Hashtable<String, String> appConfig;
 	private final ServiceInstance si;
 	private static final Logger logger = LoggerFactory.getLogger(meGrabber.class);
     private volatile boolean cancelled;
 
-	public meGrabber(ServiceInstance si, BlockingQueue<Object> vm_mob_queue,
-                     BlockingQueue<Object> esx_mob_queue, Hashtable<String, String> appConfig, BlockingQueue<Object> sender) {
+	public meGrabber(ServiceInstance si, 
+			BlockingQueue<Object> vm_mob_queue,
+            BlockingQueue<Object> esx_mob_queue, 
+            Hashtable<String, String> appConfig, 
+            BlockingQueue<Object> sender) {
 		this.vm_mob_queue = vm_mob_queue;
 		this.esx_mob_queue = esx_mob_queue;
 		this.appConfig = appConfig;
 		this.si = si;
         this.sender = sender;
+        this.clusterMap = new HashMap<String, String>();
 	}
     public void cancel() {
         this.cancelled = true;
     }
+
 	public void run() {
 		try {
 			while(!cancelled) {
 				long start = System.currentTimeMillis();
 				ManagedEntity[] vms = null;
+				ManagedEntity[] clusters = null;
+				clusterMap = new HashMap<String, String>();
                 for(int i = 0; i < Integer.parseInt(appConfig.get("MAX_VMSTAT_THREADS")); i++) {
                     String stats = "start_stats";
                     this.vm_mob_queue.put(stats);
@@ -64,10 +76,21 @@ class meGrabber implements Runnable{
 					// VirtualMachine NOT VirtualMachines
 					// get a list of virtual machines
 					vms = new InventoryNavigator(this.si.getRootFolder()).searchManagedEntities("VirtualMachine");
+					clusters = new InventoryNavigator(si.getRootFolder()).searchManagedEntities(new String[][] { new String[] { "ClusterComputeResource", "host", "name",}, }, true);
 				} catch(RemoteException e) {
 					e.getStackTrace();
 					logger.info("vm grab exception: " + e);
                     System.exit(200);
+				}
+				
+				
+				for (ManagedEntity cluster : clusters) {
+					String name = cluster.getName();
+					ManagedObjectReference[] hosts = (ManagedObjectReference[]) cluster.getPropertyByPath("host");
+					if (hosts == null) continue;
+					for (ManagedObjectReference host : hosts) {
+						clusterMap.put(host.val, name);
+					}
 				}
 				
 				if (vms != null) {
@@ -76,7 +99,12 @@ class meGrabber implements Runnable{
 					// statsGrabber thread to get stats for.
                     for (ManagedEntity vm : vms) {
                         if (vm != null) {
-                            this.vm_mob_queue.put(vm);
+                            String cluster = "none";
+                            ManagedObjectReference host = (ManagedObjectReference) vm.getPropertyByPath("runtime.host");
+                            if (clusterMap.containsKey(host.val)) {
+                            	cluster = clusterMap.get(host.val);
+                            }
+                            this.vm_mob_queue.put(new Object[] { vm, cluster });
                         }
                     }
 				}else{
@@ -114,7 +142,14 @@ class meGrabber implements Runnable{
 						// statsGrabber thread to get stats for.
                         for (ManagedEntity anEsx : esx) {
                             if (anEsx != null) {
-                                this.esx_mob_queue.put(anEsx);
+                            	String cluster = "none";
+                            	
+                            	String id = anEsx.getMOR().val;
+                            	if (clusterMap.containsKey(id)) {
+                                	cluster = clusterMap.get(id);
+                                }
+                            	
+                                this.esx_mob_queue.put(new Object[]{ anEsx, cluster});
                             }
                         }
 					}			

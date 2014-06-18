@@ -26,14 +26,19 @@ import java.rmi.RemoteException;
 import java.util.*;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import com.vmware.vim25.InvalidLogin;
+import com.vmware.vim25.ManagedObjectReference;
+import com.vmware.vim25.ObjectContent;
 import com.vmware.vim25.PerfCounterInfo;
+import com.vmware.vim25.mo.ClusterProfileManager;
 import com.vmware.vim25.mo.InventoryNavigator;
 import com.vmware.vim25.mo.ManagedEntity;
 import com.vmware.vim25.mo.PerformanceManager;
+import com.vmware.vim25.mo.Profile;
 import com.vmware.vim25.mo.ServiceInstance;
 
 import org.apache.commons.cli.*;
@@ -227,6 +232,7 @@ public class Main {
 		}
 		
 		if (si != null) {
+			
 			perfMgr = si.getPerformanceManager();
 			PerfCounterInfo[] counters = perfMgr.getPerfCounter();
 			// build a hash lookup to turn the counter 23 into 'disk.this.that.the.other'

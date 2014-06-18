@@ -61,9 +61,14 @@ class statsGrabber implements Runnable {
 		this.mobType = mobType;
 	}	
 	
-	private String[] getStats(ManagedEntity managedEntity) {
+	private String[] getStats(Object[] info) {
+		ManagedEntity managedEntity = (ManagedEntity)info[0];
+		String cluster = (String)info[1];
+		if (cluster.trim().equals(""))
+			cluster = "none";
+		
 		final ArrayList<String> temp_results = new ArrayList<String>();
-		final String TAG_NS = appConfig.get("graphiteTag") + "." + appConfig.get("vcsTag");
+		final String TAG_NS = appConfig.get("graphiteTag") + "." + appConfig.get("vcsTag") + "." + cluster;
 
 		PerfProviderSummary pps;
 		try {
@@ -244,11 +249,12 @@ class statsGrabber implements Runnable {
                 System.exit(108);
             }
 
-            if(mob instanceof ManagedEntity) {
+            if(mob instanceof Object[] && ((Object[])mob)[0] instanceof ManagedEntity) {
+            	Object[] castedMob = (Object[])mob;
                 // keep count of mobs that we've processed
                 mob_count++;
                 // run the getStats function on the vm
-                String[] stats = this.getStats((ManagedEntity) mob);
+                String[] stats = this.getStats(castedMob);
                 // take the output from the getStats function and send to graphite.
                 total_stats += stats.length;
                 try {

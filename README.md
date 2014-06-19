@@ -1,3 +1,7 @@
+This is a maintaned fork of vmstats written by Tim Conrad. You can find the original on [bitbucket](https://bitbucket.org/timconradinc/vmstats).
+
+---
+
 vmstats-2.0 - The vmstats strikes back.
 
 Version 1.0 of vmstats was written in python and this is a complete rewrite.
@@ -12,6 +16,11 @@ Version History:
 
 2.2-PRE
     - Added stats gathering into code - can now see stats dumped to log
+
+2.2
+    - Added cluster association to path.
+    - Upgraded to 5.0.1 version of vijava
+    - Moved to github
 
 Overview:
 This will log into your vCenter server, and get all performanceMetrics/stats for

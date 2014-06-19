@@ -1,6 +1,7 @@
 package org.timconrad.vmstats;
 /*
  * Copyright 2012 Tim Conrad - tim@timconrad.org
+ * Copyright 2014, Nordstrom, Inc - peter.dalinis@nordstrom.com
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.

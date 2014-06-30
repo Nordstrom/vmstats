@@ -89,7 +89,7 @@ class meGrabber implements Runnable{
 					ManagedObjectReference[] hosts = (ManagedObjectReference[]) cluster.getPropertyByPath("host");
 					if (hosts == null) continue;
 					for (ManagedObjectReference host : hosts) {
-						clusterMap.put(host.val, name);
+						clusterMap.put(host.val, name.replace(" ", "_").replace(".", "_"));
 					}
 				}
 				

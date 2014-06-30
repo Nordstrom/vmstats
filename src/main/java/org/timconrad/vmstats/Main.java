@@ -56,8 +56,7 @@ public class Main {
 		Boolean showEstimate = false;
 		Boolean noThreads = false;
 		Boolean noGraphite = false;
-        // maybe should be a config option, it's static for now
-        int GRAPHITE_THREADS = 1;
+        
         File configFile = new File("vmstats.properties");
 		
 		Hashtable<String, String> appConfig = new Hashtable<String, String>();
@@ -186,6 +185,7 @@ public class Main {
 		// TODO: make this dynamic. maybe.
 		int MAX_VMSTAT_THREADS = Integer.parseInt(config.getProperty("MAX_VMSTAT_THREADS"));
         int MAX_ESXSTAT_THREADS = Integer.parseInt(config.getProperty("MAX_ESXSTAT_THREADS"));
+        int MAX_GRAPHITE_THREADS = Integer.parseInt(config.getProperty("MAX_GRAPHITE_THREADS"));
 
         appConfig.put("MAX_VMSTAT_THREADS", String.valueOf(MAX_VMSTAT_THREADS));
         appConfig.put("MAX_ESXSTAT_THREADS", String.valueOf(MAX_ESXSTAT_THREADS));
@@ -288,7 +288,7 @@ public class Main {
 				// it's easier sometimes to debug things without stats being sent to graphite. make noGraphite = true; to 
 				// change this.
 				if(!noGraphite) {
-                    for(int i = 1; i <= GRAPHITE_THREADS; i++ ) {
+                    for(int i = 1; i <= MAX_GRAPHITE_THREADS; i++ ) {
                         GraphiteWriter graphite = new GraphiteWriter(graphiteHost, graphitePort, sender, appConfig);
                         ExecutorService graph_exe = Executors.newCachedThreadPool();
                         graph_exe.execute(graphite);

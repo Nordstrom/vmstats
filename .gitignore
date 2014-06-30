@@ -1,2 +1,6 @@
 vmstats.properties
 **/target
+/bin
+.settings
+.project
+.classpath

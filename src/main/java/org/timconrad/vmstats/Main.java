@@ -162,6 +162,8 @@ public class Main {
 		String vcsUser = config.getProperty("VCS_USER");
 		String vcsPass = config.getProperty("VCS_PASS");
 		String vcsTag = config.getProperty("VCS_TAG");
+		List<String> statExcludes = Arrays.asList(config.getProperty("STAT_EXCLUDES").split(","));
+
 		appConfig.put("vcsTag", vcsTag);
 		// vcs information
 		// this needs to be https://host/sdk
@@ -239,12 +241,16 @@ public class Main {
 			// build a hash lookup to turn the counter 23 into 'disk.this.that.the.other'
 			// These are not sequential.
 			for(int i=0; i < counters.length; i++) {
+				String group = counters[i].getGroupInfo().getKey();
+				
+				if (statExcludes.contains(group)) continue;
+				
 				// create a temp hash to push onto the big hash
 				Hashtable<String,String> temp_hash = new Hashtable<String, String>();
-				String path = counters[i].getGroupInfo().getKey() + "." + counters[i].getNameInfo().getKey();
+				String path = group + "." + counters[i].getNameInfo().getKey();
                 // this is a key like cpu.run.0.summation
 				temp_hash.put("key", path);
-                // one of average, latest, maximum, minimum, none, summation
+                // one of average, latest, maximum, minimum, none,  summation
 				temp_hash.put("rollup", counters[i].getRollupType().toString());
                 // one of absolute, delta, rate
                 temp_hash.put("statstype", counters[i].getStatsType().toString());

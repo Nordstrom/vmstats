@@ -142,7 +142,11 @@ class statsGrabber implements Runnable {
                     for (int x = 0; vals != null && x < vals.length; x++) {
                         int counterId = vals[x].getId().getCounterId();
                         // create strings for the parts of the tag.
-                        String key = perfKeys.get("" + counterId).get("key");
+                        Hashtable<String, String> perfKey = perfKeys.get("" + counterId);
+                        if (perfKey==null) 
+                        	continue;
+                        String key = perfKey.get("key");
+                        
                         String instance = vals[x].getId().getInstance();
                         // disks will be naa.12341234, change them to naa_12341234 instead
                         instance = instance.replace(".", "_");

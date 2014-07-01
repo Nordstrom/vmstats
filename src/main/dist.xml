@@ -6,7 +6,7 @@
     </formats>
     <files>
         <file>
-            <source>README.txt</source>
+            <source>README.md</source>
             <outputDirectory>/</outputDirectory>
         </file>
         <file>

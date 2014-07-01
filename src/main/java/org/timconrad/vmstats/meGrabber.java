@@ -119,6 +119,7 @@ class meGrabber implements Runnable{
                     this.vm_mob_queue.put(stats);
                 }
 
+                long esx_start = System.currentTimeMillis();
                 long esx_loop_took = 0;
 				String graphEsx = this.appConfig.get("graphEsx");
 				if (graphEsx.contains("true")) {
@@ -153,8 +154,8 @@ class meGrabber implements Runnable{
                             }
                         }
 					}			
-					long esx_stop = System.currentTimeMillis();
-					esx_loop_took = esx_stop - start;
+					
+					esx_loop_took = System.currentTimeMillis() - esx_start;
 					logger.debug("meGrabber ESX loop took " + esx_loop_took + "ms.");
                     for(int i = 0; i < Integer.parseInt(appConfig.get("MAX_ESXSTAT_THREADS")); i++) {
                         String stats = "stop_stats";

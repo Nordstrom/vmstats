@@ -63,10 +63,7 @@ public class NettyTCPWriter {
         this.channel = this.future.awaitUninterruptibly().getChannel();
 
         if(!this.future.isSuccess()){
-            this.future.getCause().printStackTrace();
-            this.bootstrap.releaseExternalResources();
             logger.info("NettyTCP: future unsuccessful");
-            System.exit(900);
         }
     }
 
@@ -87,10 +84,13 @@ public class NettyTCPWriter {
                 this.future = this.bootstrap.connect();
                 this.channel = this.future.awaitUninterruptibly().getChannel();
                 if(!this.future.isSuccess()){
-                    this.future.getCause().printStackTrace();
-                    this.bootstrap.releaseExternalResources();
                     logger.info("NettyTCP: future unsuccessful");
-                    System.exit(910);
+                    try {
+						Thread.sleep(100);
+					} catch (InterruptedException e) {
+						
+					}
+                    
                 }
             }else{
                 this.lastWrite = this.channel.write(input);

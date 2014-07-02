@@ -4,3 +4,4 @@ vmstats.properties
 .settings
 .project
 .classpath
+*.log

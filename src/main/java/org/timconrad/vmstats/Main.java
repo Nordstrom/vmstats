@@ -205,6 +205,7 @@ public class Main {
         }
         appConfig.put("SEND_ALL_ABSOLUTE", config.getProperty("SEND_ALL_ABSOLUTE"));
         appConfig.put("SEND_ALL_DELTA", config.getProperty("SEND_ALL_DELTA"));
+        appConfig.put("DISCONNECT_GRAPHITE_AFTER", config.getProperty("DISCONNECT_GRAPHITE_AFTER"));
 
 		// Build internal data structures. 
 		

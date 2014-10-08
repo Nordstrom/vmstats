@@ -32,21 +32,23 @@ import org.slf4j.LoggerFactory;
 
 public class NettyTCPWriter {
 
-    static final int RECONNECT_DELAY = 5;
     private static final Logger logger = LoggerFactory.getLogger(NettyTCPWriterHandler.class);
     private String host = "localhost";
     private int port = 2003;
-    private int reconnect_tries = 0;
 
     private Channel channel;
     private ChannelFuture future;
     private ChannelFuture lastWrite;
     private ClientBootstrap bootstrap;
     final Timer timer = new HashedWheelTimer();
+    
+    private int disconnectCounter = 1;
+	private int disconnectAfter;
 
-    public NettyTCPWriter(String host, int port) {
+    public NettyTCPWriter(String host, int port, int disconnectAfter) {
         this.host = host;
         this.port = port;
+        this.disconnectAfter = disconnectAfter;
     }
 
     public void connect() throws IOException {
@@ -57,11 +59,13 @@ public class NettyTCPWriter {
 
         this.bootstrap.setPipelineFactory(new NettyTCPWriterPipelineFactory(this.bootstrap, this.channel, this.timer));
         this.bootstrap.setOption("tcpNoDelay", true);
+        
         // TODO: do some exception handling here
         bootstrap.setOption("remoteAddress", new InetSocketAddress(this.host, this.port));
         this.future = this.bootstrap.connect();
         this.channel = this.future.awaitUninterruptibly().getChannel();
-
+        this.channel.setReadable(false);
+        
         if(!this.future.isSuccess()){
             logger.info("NettyTCP: future unsuccessful");
         }
@@ -73,6 +77,36 @@ public class NettyTCPWriter {
         }
         this.lastWrite = this.channel.write(input);
     }
+    
+    public void sendMany2(String[] inputs) throws IOException {
+    	
+    	StringBuilder sb = new StringBuilder();
+    	
+    	
+    	for(String input : inputs) {
+    		if (input != null && !input.trim().equals(""))
+    			sb.append(input + "\r\n ");
+    	}
+    	
+    	if(!this.channel.isConnected()) {
+            logger.info("Channel not connected");
+            this.future = this.bootstrap.connect().awaitUninterruptibly();
+			this.channel = this.future.awaitUninterruptibly().getChannel();
+			
+            if(!this.future.isSuccess()){
+                logger.info("NettyTCP: future unsuccessful");
+                try {
+					Thread.sleep(100);
+				} catch (InterruptedException e) {
+					
+				}
+                
+            }
+        }
+    	
+    	logger.info("writing " + sb.length() + " to graphite");
+    	this.lastWrite = this.channel.write(sb.toString());
+    }
 
     public void sendMany(String[] inputs) throws IOException {
         for(String input : inputs) {
@@ -81,8 +115,9 @@ public class NettyTCPWriter {
             }
             if(!this.channel.isConnected()) {
                 logger.info("Channel not connected");
-                this.future = this.bootstrap.connect();
-                this.channel = this.future.awaitUninterruptibly().getChannel();
+                this.future = this.bootstrap.connect().awaitUninterruptibly();
+				this.channel = this.future.awaitUninterruptibly().getChannel();
+				
                 if(!this.future.isSuccess()){
                     logger.info("NettyTCP: future unsuccessful");
                     try {
@@ -92,8 +127,20 @@ public class NettyTCPWriter {
 					}
                     
                 }
-            }else{
-                this.lastWrite = this.channel.write(input);
+            }
+            
+        	this.lastWrite = this.channel.write(input);
+            disconnectCounter++;
+            
+            
+            if (disconnectAfter != 0 && disconnectCounter % disconnectAfter == 0)
+            {
+            	disconnectCounter = 1;
+            	if(this.lastWrite != null) {
+                    this.lastWrite.awaitUninterruptibly();
+                }
+				this.channel.disconnect().awaitUninterruptibly();
+				logger.info("disconnected after sending " + disconnectAfter + " stats as specified in config file.");
             }
         }
     }

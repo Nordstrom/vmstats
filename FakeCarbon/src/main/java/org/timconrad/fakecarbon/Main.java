@@ -42,6 +42,9 @@ public class Main {
 
         bootstrap.setPipelineFactory(new FakeCarbonPipelineFactory(appConfig));
         bootstrap.bind(new InetSocketAddress(port));
+        bootstrap.setOption("tcpNoDelay", true);
+        bootstrap.setOption("receiveBufferSize", 1048576);
+
     }
 
     public void setPort(int port) {

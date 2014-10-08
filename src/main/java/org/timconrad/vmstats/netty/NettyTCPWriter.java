@@ -22,7 +22,6 @@ import org.jboss.netty.channel.socket.nio.NioClientSocketChannelFactory;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.nio.channels.ClosedChannelException;
 import java.util.concurrent.Executors;
 
 import org.jboss.netty.util.HashedWheelTimer;

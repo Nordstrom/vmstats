@@ -80,7 +80,7 @@ class GraphiteWriter implements Runnable{
                     // send it via sendMany in the graphite object
                     values = (String[]) value;
                     if (values.length != 0)
-                    	graphite.sendMany2(values);
+                    	graphite.sendMany(values);
                     total_stats += values.length;
                 }
                 else if(value instanceof String) {

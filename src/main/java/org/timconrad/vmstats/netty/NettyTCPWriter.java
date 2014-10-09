@@ -57,7 +57,7 @@ public class NettyTCPWriter {
                         Executors.newCachedThreadPool()));
 
         this.bootstrap.setPipelineFactory(new NettyTCPWriterPipelineFactory(this.bootstrap, this.channel, this.timer));
-        this.bootstrap.setOption("tcpNoDelay", true);
+        //this.bootstrap.setOption("tcpNoDelay", true);
         
         // TODO: do some exception handling here
         bootstrap.setOption("remoteAddress", new InetSocketAddress(this.host, this.port));
@@ -77,64 +77,33 @@ public class NettyTCPWriter {
         this.lastWrite = this.channel.write(input);
     }
     
-    public void sendMany2(String[] inputs) throws IOException {
-    	
-    	StringBuilder sb = new StringBuilder();
-    	
-    	
-    	for(String input : inputs) {
-    		if (input != null && !input.trim().equals(""))
-    			sb.append(input + "\r\n ");
-    	}
-    	
-    	if(!this.channel.isConnected()) {
-            logger.info("Channel not connected");
-            this.future = this.bootstrap.connect().awaitUninterruptibly();
-			this.channel = this.future.awaitUninterruptibly().getChannel();
-			
-            if(!this.future.isSuccess()){
-                logger.info("NettyTCP: future unsuccessful");
-                try {
-					Thread.sleep(100);
-				} catch (InterruptedException e) {
-					
-				}
-                
-            }
-        }
-    	
-    	logger.info("writing " + sb.length() + " to graphite");
-    	this.lastWrite = this.channel.write(sb.toString());
-    }
-
     public void sendMany(String[] inputs) throws IOException {
+    	disconnectCounter = 0;
         for(String input : inputs) {
             if(!input.contains("\n")) {
                 input = input + "\n";
             }
             if(!this.channel.isConnected()) {
-                logger.info("Channel not connected");
                 this.future = this.bootstrap.connect().awaitUninterruptibly();
 				this.channel = this.future.awaitUninterruptibly().getChannel();
+				this.channel.setReadable(false);
 				
                 if(!this.future.isSuccess()){
                     logger.info("NettyTCP: future unsuccessful");
                     try {
-						Thread.sleep(100);
+						Thread.sleep(10);
 					} catch (InterruptedException e) {
 						
 					}
-                    
                 }
             }
             
         	this.lastWrite = this.channel.write(input);
+        	
             disconnectCounter++;
-            
-            
             if (disconnectAfter != 0 && disconnectCounter % disconnectAfter == 0)
             {
-            	disconnectCounter = 1;
+            	disconnectCounter = 0;
             	if(this.lastWrite != null) {
                     this.lastWrite.awaitUninterruptibly();
                 }

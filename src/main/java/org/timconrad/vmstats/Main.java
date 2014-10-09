@@ -207,7 +207,7 @@ public class Main {
 		// use a hashtable to store performance id information
 		Hashtable<String, Hashtable<String, String>> perfKeys = new Hashtable<String, Hashtable<String, String>>();
 		// BlockingQueue to store managed objects - basically anything that vmware knows about
-		BlockingQueue<Object> vm_mob_queue = new ArrayBlockingQueue<Object>(10000);
+		BlockingQueue<Object> vm_mob_queue = new ArrayBlockingQueue<Object>(20000);
 		BlockingQueue<Object> esx_mob_queue = new ArrayBlockingQueue<Object>(10000);
 		// BlockingQueue to store arrays of stats - each managed object generates a bunch of strings that are stored in
 		BlockingQueue<Object> sender = new ArrayBlockingQueue<Object>(60000);
@@ -312,6 +312,14 @@ public class Main {
                         esx_stat_exe.execute(esx_stats_grabber);
                     }
 				}
+				
+				Map<String, BlockingQueue<Object>> watch = new HashMap<String, BlockingQueue<Object>>();
+				watch.put("graphite", sender);
+				watch.put("vm", vm_mob_queue);
+				watch.put("esx", esx_mob_queue);
+				
+				QueueWatcher watcher = new QueueWatcher(watch, 5000);
+				Executors.newSingleThreadExecutor().execute(watcher);
 				
 				
 			}else{

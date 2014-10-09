@@ -35,6 +35,7 @@ import com.vmware.vim25.mo.InventoryNavigator;
 import com.vmware.vim25.mo.ManagedEntity;
 import com.vmware.vim25.mo.ServiceInstance;
 
+// TODO: Refactor to remove the code duplication in this class.
 class meGrabber implements Runnable{
 	
 	private final BlockingQueue<Object> vm_mob_queue;
@@ -71,11 +72,16 @@ class meGrabber implements Runnable{
     	try {
 	    	for (Object item : vm_cache) {
 				vm_mob_queue.put(item);
-				
 	    	}
+	    	
 	    	for (Object item : esx_cache) {
 	    		esx_mob_queue.put(item);
 	    	}
+	    	
+	    	logger.info("Copied over {} cached vm objects into queue that has a length of {}", vm_cache.size(), vm_mob_queue.size());
+	    		
+	    	logger.info("Copied over {} cached esx objects into queue that has a length of {}", esx_cache.size(), esx_mob_queue.size());
+    	
     	} catch (InterruptedException e) {
     		Thread.currentThread().interrupt();
 			logger.info("Interrupted Thread: " + Thread.currentThread().getName() + " +  Interrupted: " + e.getMessage());
@@ -117,8 +123,7 @@ class meGrabber implements Runnable{
 		
 		if (vms != null) {
             logger.info("Found " + vms.length + " Virtual Machines");
-			// if they're not null, loop through them and send them to the
-			// statsGrabber thread to get stats for.
+			// if they're not null, loop through them and send them to the statsGrabber thread to get stats for.
             for (ManagedEntity vm : vms) {
                 if (vm != null) {
                     String cluster = "none";
@@ -163,8 +168,7 @@ class meGrabber implements Runnable{
 			
 			logger.info("Found " + esx.length + " ESX Hosts");
 			if (esx != null) {
-				// if they're not null, loop through them and send them to the
-				// statsGrabber thread to get stats for.
+				// if they're not null, loop through them and send them to the statsGrabber thread to get stats for.
                 for (ManagedEntity anEsx : esx) {
                     if (anEsx != null) {
                     	String cluster = "none";
@@ -189,7 +193,7 @@ class meGrabber implements Runnable{
     }
 
 	public void run() {
-		int cachedLoopCounter = 0;
+		int cachedLoopCounter;
 		int cachedLoopCycles = Integer.parseInt(appConfig.get("CACHED_LOOP_CYCLES"));
 		int user_sleep_time = Integer.parseInt(appConfig.get("SLEEP_TIME")) * 1000;
 		String dump = "dump_stats";
@@ -198,6 +202,7 @@ class meGrabber implements Runnable{
 			while(!cancelled) {
 				refreshVMCache();
 				refreshESXCache();
+				cachedLoopCounter = 0;
 				
 				while (cachedLoopCounter < cachedLoopCycles) {
 					copyCachesToQueues();

@@ -39,6 +39,10 @@ class GraphiteWriter implements Runnable{
 		this.host = host;
 		this.port = port;
         this.appConfig = appConfig;
+        
+        if(this.appConfig.get("debugOutput").contains("true")){
+            this.debugOutput = true;
+        }
 	}
 
     public void cancel() {
@@ -46,7 +50,7 @@ class GraphiteWriter implements Runnable{
     }
 	
 	public void run() {
-        NettyTCPWriter graphite = new NettyTCPWriter(host, port);
+        NettyTCPWriter graphite = new NettyTCPWriter(host, port, Integer.parseInt(this.appConfig.get("DISCONNECT_GRAPHITE_AFTER")));
         long total_stats = 0;
         try {
             graphite.connect();
@@ -55,9 +59,7 @@ class GraphiteWriter implements Runnable{
         }
         String threadName = Thread.currentThread().getName();
         BufferedWriter out  = null;
-        if(this.appConfig.get("debugOutput").contains("true")){
-            this.debugOutput = true;
-        }
+                
         if(this.debugOutput) {
             String fileName = "debug-gwriter-" + threadName + ".log";
             FileWriter fstream = null;
@@ -69,22 +71,26 @@ class GraphiteWriter implements Runnable{
                 System.exit(-1);
             }
         }
+        
         try{
 			while(!cancelled) {
-				// take the first one off the queue. this is a BlockingQueue so it blocks the loop until somethin
-				// comes along on the queue.
+				
+				// take the first one off the queue. this is a BlockingQueue so it blocks the loop until something comes along on the queue.
 				Object value = this.dumper.take();
                 String[] values;
                 if(value instanceof String[]) {
                     // send it via sendMany in the graphite object
                     values = (String[]) value;
-                    graphite.sendMany(values);
+                    if (values.length != 0)
+                    	graphite.sendMany(values);
                     total_stats += values.length;
-                }else if(value instanceof String) {
+                }
+                else if(value instanceof String) {
                     if(value.equals("dump_stats")) {
                         logger.debug(threadName + " sent " + total_stats + " stats to graphite@" + this.host + ":" + this.port);
                         total_stats = 0;
-                    }else{
+                    }
+                    else{
                         graphite.sendOne((String) value);
                     }
                 }

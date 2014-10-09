@@ -16,8 +16,6 @@ package org.timconrad.vmstats;
  *    limitations under the License.
  */
 
-import java.io.BufferedWriter;
-import java.io.FileWriter;
 import java.rmi.RemoteException;
 import java.util.ArrayList;
 import java.util.Hashtable;

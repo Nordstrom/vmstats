@@ -27,19 +27,12 @@ import java.rmi.RemoteException;
 import java.util.*;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import com.vmware.vim25.InvalidLogin;
-import com.vmware.vim25.ManagedObjectReference;
-import com.vmware.vim25.ObjectContent;
 import com.vmware.vim25.PerfCounterInfo;
-import com.vmware.vim25.mo.ClusterProfileManager;
-import com.vmware.vim25.mo.InventoryNavigator;
-import com.vmware.vim25.mo.ManagedEntity;
 import com.vmware.vim25.mo.PerformanceManager;
-import com.vmware.vim25.mo.Profile;
 import com.vmware.vim25.mo.ServiceInstance;
 
 import org.apache.commons.cli.*;
@@ -193,6 +186,8 @@ public class Main {
         appConfig.put("MAX_ESXSTAT_THREADS", String.valueOf(MAX_ESXSTAT_THREADS));
         String SLEEP_TIME = config.getProperty("SLEEP_TIME");
         appConfig.put("SLEEP_TIME",SLEEP_TIME);
+        String CACHED_LOOP_CYCLES = config.getProperty("CACHED_LOOP_CYCLES");
+        appConfig.put("CACHED_LOOP_CYCLES", CACHED_LOOP_CYCLES);
         String SEND_ALL_PERIODS = config.getProperty("SEND_ALL_PERIODS");
         appConfig.put("SEND_ALL_PERIODS",SEND_ALL_PERIODS);
         int sleep_time = Integer.parseInt(SLEEP_TIME);
@@ -205,13 +200,14 @@ public class Main {
         }
         appConfig.put("SEND_ALL_ABSOLUTE", config.getProperty("SEND_ALL_ABSOLUTE"));
         appConfig.put("SEND_ALL_DELTA", config.getProperty("SEND_ALL_DELTA"));
+        appConfig.put("DISCONNECT_GRAPHITE_AFTER", config.getProperty("DISCONNECT_GRAPHITE_AFTER"));
 
 		// Build internal data structures. 
 		
 		// use a hashtable to store performance id information
 		Hashtable<String, Hashtable<String, String>> perfKeys = new Hashtable<String, Hashtable<String, String>>();
 		// BlockingQueue to store managed objects - basically anything that vmware knows about
-		BlockingQueue<Object> vm_mob_queue = new ArrayBlockingQueue<Object>(10000);
+		BlockingQueue<Object> vm_mob_queue = new ArrayBlockingQueue<Object>(20000);
 		BlockingQueue<Object> esx_mob_queue = new ArrayBlockingQueue<Object>(10000);
 		// BlockingQueue to store arrays of stats - each managed object generates a bunch of strings that are stored in
 		BlockingQueue<Object> sender = new ArrayBlockingQueue<Object>(60000);
@@ -316,6 +312,14 @@ public class Main {
                         esx_stat_exe.execute(esx_stats_grabber);
                     }
 				}
+				
+				Map<String, BlockingQueue<Object>> watch = new HashMap<String, BlockingQueue<Object>>();
+				watch.put("graphite", sender);
+				watch.put("vm", vm_mob_queue);
+				watch.put("esx", esx_mob_queue);
+				
+				QueueWatcher watcher = new QueueWatcher(watch, 5000);
+				Executors.newSingleThreadExecutor().execute(watcher);
 				
 				
 			}else{

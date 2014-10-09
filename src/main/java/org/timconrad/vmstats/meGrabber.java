@@ -20,9 +20,11 @@ package org.timconrad.vmstats;
 // this goes and gets a list of managed entities to send to statsGrabber
 
 import java.rmi.RemoteException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Hashtable;
+import java.util.List;
 import java.util.concurrent.BlockingQueue;
 
 import org.slf4j.Logger;
@@ -33,10 +35,13 @@ import com.vmware.vim25.mo.InventoryNavigator;
 import com.vmware.vim25.mo.ManagedEntity;
 import com.vmware.vim25.mo.ServiceInstance;
 
+// TODO: Refactor to remove the code duplication in this class.
 class meGrabber implements Runnable{
 	
 	private final BlockingQueue<Object> vm_mob_queue;
 	private final BlockingQueue<Object> esx_mob_queue;
+	private final List<Object> vm_cache;
+	private final List<Object> esx_cache;
     private final BlockingQueue<Object> sender;
     private HashMap<String, String> clusterMap;
 	private final Hashtable<String, String> appConfig;
@@ -55,128 +60,156 @@ class meGrabber implements Runnable{
 		this.si = si;
         this.sender = sender;
         this.clusterMap = new HashMap<String, String>();
+        this.vm_cache = new ArrayList<Object>();
+        this.esx_cache = new ArrayList<Object>();
 	}
+	
     public void cancel() {
         this.cancelled = true;
     }
     
+    public void copyCachesToQueues() {
+    	try {
+	    	for (Object item : vm_cache) {
+				vm_mob_queue.put(item);
+	    	}
+	    	
+	    	for (Object item : esx_cache) {
+	    		esx_mob_queue.put(item);
+	    	}
+	    	
+	    	logger.info("Copied over {} cached vm objects into queue that has a length of {}", vm_cache.size(), vm_mob_queue.size());
+	    		
+	    	logger.info("Copied over {} cached esx objects into queue that has a length of {}", esx_cache.size(), esx_mob_queue.size());
+    	
+    	} catch (InterruptedException e) {
+    		Thread.currentThread().interrupt();
+			logger.info("Interrupted Thread: " + Thread.currentThread().getName() + " +  Interrupted: " + e.getMessage());
+            System.exit(202);
+		}
+    }
+    
+    public void refreshVMCache() {
+    	vm_cache.clear();
+    	   	
+    	long start = System.currentTimeMillis();
+		ManagedEntity[] vms = null;
+		ManagedEntity[] clusters = null;
+		clusterMap = new HashMap<String, String>();
+        for(int i = 0; i < Integer.parseInt(appConfig.get("MAX_VMSTAT_THREADS")); i++) {
+            String stats = "start_stats";
+            vm_cache.add(stats);
+        }
+		try {
+			// VirtualMachine NOT VirtualMachines
+			// get a list of virtual machines
+			vms = new InventoryNavigator(this.si.getRootFolder()).searchManagedEntities("VirtualMachine");
+			clusters = new InventoryNavigator(si.getRootFolder()).searchManagedEntities(new String[][] { new String[] { "ClusterComputeResource", "host", "name",}, }, true);
+		} catch(RemoteException e) {
+			e.getStackTrace();
+			logger.info("vm grab exception: " + e);
+            System.exit(200);
+		}
+		
+		
+		for (ManagedEntity cluster : clusters) {
+			String name = cluster.getName();
+			ManagedObjectReference[] hosts = (ManagedObjectReference[]) cluster.getPropertyByPath("host");
+			if (hosts == null) continue;
+			for (ManagedObjectReference host : hosts) {
+				clusterMap.put(host.val, name.replace(" ", "_").replace(".", "_"));
+			}
+		}
+		
+		if (vms != null) {
+            logger.info("Found " + vms.length + " Virtual Machines");
+			// if they're not null, loop through them and send them to the statsGrabber thread to get stats for.
+            for (ManagedEntity vm : vms) {
+                if (vm != null) {
+                    String cluster = "none";
+                    ManagedObjectReference host = (ManagedObjectReference) vm.getPropertyByPath("runtime.host");
+                    if (clusterMap.containsKey(host.val)) {
+                    	cluster = clusterMap.get(host.val);
+                    }
+                    vm_cache.add(new Object[] { vm, cluster });
+                }
+            }
+		}else{
+            logger.info("Found null virtual machines. Something's probably wrong.");
+        }
+		long vm_stop = System.currentTimeMillis();
+		long vm_loop_took = vm_stop - start;
+		logger.debug("meGrabber VM loop took " + vm_loop_took + "ms.");
+
+        for(int i = 0; i < Integer.parseInt(appConfig.get("MAX_VMSTAT_THREADS")); i++) {
+            String stats = "stop_stats";
+            vm_cache.add(stats);
+        }
+    }
+    
+    public void refreshESXCache() {
+    	long start = System.currentTimeMillis();
+        long esx_loop_took = 0;
+		String graphEsx = this.appConfig.get("graphEsx");
+		if (graphEsx.contains("true")) {
+            for(int i = 0; i < Integer.parseInt(appConfig.get("MAX_ESXSTAT_THREADS")); i++) {
+                String stats = "start_stats";
+                esx_cache.add(stats);
+            }
+			ManagedEntity[] esx = null;
+			// get the esx nodes, aka HostSystem
+			try {
+				esx = new InventoryNavigator(this.si.getRootFolder()).searchManagedEntities("HostSystem");
+			} catch(RemoteException e) {
+				e.getStackTrace();
+				logger.info("vm grab exception: " + e);
+                System.exit(201);
+			}
+			
+			logger.info("Found " + esx.length + " ESX Hosts");
+			if (esx != null) {
+				// if they're not null, loop through them and send them to the statsGrabber thread to get stats for.
+                for (ManagedEntity anEsx : esx) {
+                    if (anEsx != null) {
+                    	String cluster = "none";
+                    	
+                    	String id = anEsx.getMOR().val;
+                    	if (clusterMap.containsKey(id)) {
+                        	cluster = clusterMap.get(id);
+                        }
+                    	
+                        esx_cache.add(new Object[]{ anEsx, cluster});
+                    }
+                }
+			}			
+			
+			esx_loop_took = System.currentTimeMillis() - start;
+			logger.debug("meGrabber ESX loop took " + esx_loop_took + "ms.");
+            for(int i = 0; i < Integer.parseInt(appConfig.get("MAX_ESXSTAT_THREADS")); i++) {
+                String stats = "stop_stats";
+                esx_cache.add(stats);
+            }
+		}
+    }
 
 	public void run() {
+		int cachedLoopCounter;
+		int cachedLoopCycles = Integer.parseInt(appConfig.get("CACHED_LOOP_CYCLES"));
+		int user_sleep_time = Integer.parseInt(appConfig.get("SLEEP_TIME")) * 1000;
+		String dump = "dump_stats";
+		
 		try {
 			while(!cancelled) {
-				long start = System.currentTimeMillis();
-				ManagedEntity[] vms = null;
-				ManagedEntity[] clusters = null;
-				clusterMap = new HashMap<String, String>();
-                for(int i = 0; i < Integer.parseInt(appConfig.get("MAX_VMSTAT_THREADS")); i++) {
-                    String stats = "start_stats";
-                    this.vm_mob_queue.put(stats);
-                }
-				try {
-					// VirtualMachine NOT VirtualMachines
-					// get a list of virtual machines
-					vms = new InventoryNavigator(this.si.getRootFolder()).searchManagedEntities("VirtualMachine");
-					clusters = new InventoryNavigator(si.getRootFolder()).searchManagedEntities(new String[][] { new String[] { "ClusterComputeResource", "host", "name",}, }, true);
-				} catch(RemoteException e) {
-					e.getStackTrace();
-					logger.info("vm grab exception: " + e);
-                    System.exit(200);
+				refreshVMCache();
+				refreshESXCache();
+				cachedLoopCounter = 0;
+				
+				while (cachedLoopCounter < cachedLoopCycles) {
+					copyCachesToQueues();
+					sender.put(dump);
+					cachedLoopCounter++;
+					Thread.sleep(user_sleep_time);
 				}
-				
-				
-				for (ManagedEntity cluster : clusters) {
-					String name = cluster.getName();
-					ManagedObjectReference[] hosts = (ManagedObjectReference[]) cluster.getPropertyByPath("host");
-					if (hosts == null) continue;
-					for (ManagedObjectReference host : hosts) {
-						clusterMap.put(host.val, name.replace(" ", "_").replace(".", "_"));
-					}
-				}
-				
-				if (vms != null) {
-                    logger.info("Found " + vms.length + " Virtual Machines");
-					// if they're not null, loop through them and send them to the
-					// statsGrabber thread to get stats for.
-                    for (ManagedEntity vm : vms) {
-                        if (vm != null) {
-                            String cluster = "none";
-                            ManagedObjectReference host = (ManagedObjectReference) vm.getPropertyByPath("runtime.host");
-                            if (clusterMap.containsKey(host.val)) {
-                            	cluster = clusterMap.get(host.val);
-                            }
-                            this.vm_mob_queue.put(new Object[] { vm, cluster });
-                        }
-                    }
-				}else{
-                    logger.info("Found null virtual machines. Something's probably wrong.");
-                }
-				long vm_stop = System.currentTimeMillis();
-				long vm_loop_took = vm_stop - start;
-				logger.debug("meGrabber VM loop took " + vm_loop_took + "ms.");
-
-                for(int i = 0; i < Integer.parseInt(appConfig.get("MAX_VMSTAT_THREADS")); i++) {
-                    String stats = "stop_stats";
-                    this.vm_mob_queue.put(stats);
-                }
-
-                long esx_start = System.currentTimeMillis();
-                long esx_loop_took = 0;
-				String graphEsx = this.appConfig.get("graphEsx");
-				if (graphEsx.contains("true")) {
-                    for(int i = 0; i < Integer.parseInt(appConfig.get("MAX_ESXSTAT_THREADS")); i++) {
-                        String stats = "start_stats";
-                        this.esx_mob_queue.put(stats);
-                    }
-					ManagedEntity[] esx = null;
-					// get the esx nodes, aka HostSystem
-					try {
-						esx = new InventoryNavigator(this.si.getRootFolder()).searchManagedEntities("HostSystem");
-					} catch(RemoteException e) {
-						e.getStackTrace();
-						logger.info("vm grab exception: " + e);
-                        System.exit(201);
-					}
-					
-					logger.info("Found " + esx.length + " ESX Hosts");
-					if (esx != null) {
-						// if they're not null, loop through them and send them to the
-						// statsGrabber thread to get stats for.
-                        for (ManagedEntity anEsx : esx) {
-                            if (anEsx != null) {
-                            	String cluster = "none";
-                            	
-                            	String id = anEsx.getMOR().val;
-                            	if (clusterMap.containsKey(id)) {
-                                	cluster = clusterMap.get(id);
-                                }
-                            	
-                                this.esx_mob_queue.put(new Object[]{ anEsx, cluster});
-                            }
-                        }
-					}			
-					
-					esx_loop_took = System.currentTimeMillis() - esx_start;
-					logger.debug("meGrabber ESX loop took " + esx_loop_took + "ms.");
-                    for(int i = 0; i < Integer.parseInt(appConfig.get("MAX_ESXSTAT_THREADS")); i++) {
-                        String stats = "stop_stats";
-                        this.esx_mob_queue.put(stats);
-                    }
-				}
-				
-				long loop_took = vm_loop_took + esx_loop_took;
-				// stupid simple thing to make this go every 60 seconds, since we're getting 'past data' anyways.
-				// there's probably more accurate ways of doing this.
-                int user_sleep_time = Integer.parseInt(appConfig.get("SLEEP_TIME")) * 1000;
-				long sleep_time = user_sleep_time - loop_took;
-				logger.debug("Sleeping for " + sleep_time + "ms.");
-				Thread.sleep(sleep_time);
-                // check the config object if it's determined to only run one time
-                String dump = "dump_stats";
-                sender.put(dump);
-                if(appConfig.get("runOnce").contains("true")){
-                    logger.info("Run once flag detected, exiting now.");
-                    System.exit(0);
-                }
 			}
 		} catch(InterruptedException e) {
 			Thread.currentThread().interrupt();

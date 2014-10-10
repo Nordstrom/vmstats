@@ -68,20 +68,20 @@ class meGrabber implements Runnable{
         this.cancelled = true;
     }
     
-    public void copyCachesToQueues() {
+    public void copyCacheToQueue(BlockingQueue<Object> queue, List<Object> cache, String name) {
+    	// Do not fill up the statsQueue too much!
+		if (vm_mob_queue.size() > 1.5*vm_cache.size()) {
+			logger.info("Did not copy {} cache to queue because it is too full. Is vCenter down, or do you need more workers?", name);
+			return;
+		}
+		
     	try {
-	    	for (Object item : vm_cache) {
-				vm_mob_queue.put(item);
+    		for (Object item : cache) {
+	    		queue.put(item);
 	    	}
-	    	
-	    	for (Object item : esx_cache) {
-	    		esx_mob_queue.put(item);
-	    	}
-	    	
-	    	logger.info("Copied over {} cached vm objects into queue that has a length of {}", vm_cache.size(), vm_mob_queue.size());
-	    		
-	    	logger.info("Copied over {} cached esx objects into queue that has a length of {}", esx_cache.size(), esx_mob_queue.size());
     	
+	    	logger.info("Copied over {} cached {} objects into queue that has a length of {}", new Object[]{cache.size(), name, queue.size()});
+	    	
     	} catch (InterruptedException e) {
     		Thread.currentThread().interrupt();
 			logger.info("Interrupted Thread: " + Thread.currentThread().getName() + " +  Interrupted: " + e.getMessage());
@@ -205,7 +205,8 @@ class meGrabber implements Runnable{
 				cachedLoopCounter = 0;
 				
 				while (cachedLoopCounter < cachedLoopCycles) {
-					copyCachesToQueues();
+					copyCacheToQueue(vm_mob_queue, vm_cache, "vm");
+					copyCacheToQueue(esx_mob_queue, esx_cache, "esx");
 					sender.put(dump);
 					cachedLoopCounter++;
 					Thread.sleep(user_sleep_time);

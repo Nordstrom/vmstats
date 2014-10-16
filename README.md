@@ -12,8 +12,6 @@ The amount of information being sent to graphite is related to the way your ESX 
 
 The CPU requirements for the Java code are fairly small, however.
 
-This is currently designed around getting statistics once every minute.
-
 ## Requirements
 - Sun/Oracle Java 1.6/1.7
 - Graphite 0.9.9+ (Could work with older, this is all I tested with)
@@ -56,8 +54,6 @@ This code is a bit cowardly, if exceptions are generated, the entire thing is go
 The default configuration file is tested and tuned for 4,000 VM's, 220 ESX Hosts. 
  
 There's not a lot of configuration file checking, so if all the variables aren't there, it will simply say they're not all there and exit. The -N option to start up without threads can be helpful in this case.
-
-VMware statistics are kept in 20 second intervals. This code currently grabs the statistics every 60 seconds, and only for that interval. This means that there are two intervals that are lost per 60 second interval. There will be some work-around for this in a future version.
 
 ## Build Requirements:
 This project is a maven project, so it should auto-grab these dependencies for you.
